@@ -1,34 +1,43 @@
-const { PrismaClient } = require('../src/generated/prisma');
+const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
+const path = require('path');
+const crypto = require('crypto');
 
-async function main() {
-  const prisma = new PrismaClient();
-
-  const adminEmail = 'admin@jaxtina.edu';
-  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
-
-  if (existing) {
-    console.log('Admin user already exists');
-    return;
-  }
-
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-
-  await prisma.user.create({
-    data: {
-      email: adminEmail,
-      password: hashedPassword,
-      name: 'System Admin',
-      role: 'CENTRAL_ADMIN',
-    },
-  });
-
-  console.log('Created default admin user:');
-  console.log('  Email: admin@jaxtina.edu');
-  console.log('  Password: admin123');
-  console.log('  Role: CENTRAL_ADMIN');
+function generateId() {
+  return 'c' + crypto.randomBytes(16).toString('hex').slice(0, 24);
 }
 
-main()
-  .catch(console.error)
-  .finally(() => process.exit(0));
+async function main() {
+  const dbPath = path.join(__dirname, '..', 'dev.db');
+  const db = new Database(dbPath);
+
+  const email = 'admin@school.edu';
+  const password = 'Admin123!';
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const id = generateId();
+  const now = new Date().toISOString();
+
+  try {
+    const existing = db.prepare('SELECT id FROM "User" WHERE email = ?').get(email);
+    if (existing) {
+      console.log('Admin account already exists:', email);
+      return;
+    }
+
+    db.prepare(
+      `INSERT INTO "User" (id, email, password, name, role, "isActive", "createdAt", "updatedAt")
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, email, hashedPassword, 'System Admin', 'CENTRAL_ADMIN', 1, now, now);
+
+    console.log('Admin account created successfully!');
+    console.log('Email:', email);
+    console.log('Password:', password);
+  } catch (error) {
+    console.error('Failed to create admin account:', error);
+    process.exit(1);
+  } finally {
+    db.close();
+  }
+}
+
+main();

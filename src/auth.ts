@@ -1,7 +1,6 @@
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { authConfig } from './auth.config';
@@ -51,11 +50,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           teacherId: user.teacherId,
         };
       },
-    }),
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID ?? '',
-      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? '',
-      allowDangerousEmailAccountLinking: true,
     }),
   ],
 });
