@@ -74,37 +74,3 @@ export interface FilterOptions {
   courseId?: string;
   searchQuery?: string;
 }
-
-export type SharePermission = 'READER' | 'WRITER' | 'OWNER';
-export type ShareStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REVOKED' | 'FAILED';
-
-export interface GoogleIntegration {
-  id: string;
-  centreId: string;
-  clientId: string;
-  serviceAccountEmail: string;
-  verifiedDomain: string;
-  isDomainVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CalendarShare {
-  id: string;
-  classSessionId: string;
-  teacherEmail: string;
-  teacherName: string | null;
-  permission: SharePermission;
-  sendEmailNotification: boolean;
-  googleEventId: string | null;
-  googleCalendarId: string | null;
-  status: ShareStatus;
-  lastSyncAt: Date | null;
-  errorMessage: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CalendarShareWithSession extends CalendarShare {
-  classSession: ClassSessionWithRelations;
-}

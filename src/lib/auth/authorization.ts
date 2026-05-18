@@ -42,10 +42,6 @@ export function canDelete(user: SessionUser): boolean {
   return user.role === 'CENTRAL_ADMIN' || user.role === 'CENTRE_MANAGER';
 }
 
-export function canManageGoogleIntegration(user: SessionUser): boolean {
-  return user.role === 'CENTRAL_ADMIN';
-}
-
 export function canDeleteCentre(user: SessionUser): boolean {
   return user.role === 'CENTRAL_ADMIN';
 }

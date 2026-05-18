@@ -19,7 +19,6 @@ import {
 } from 'date-fns';
 import { useSessions } from '@/hooks/use-sessions';
 import { formatDate } from '@/lib/utils';
-import { ShareCalendarModal } from './share-calendar-modal';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const MAX_VISIBLE_SESSIONS = 3;
@@ -30,8 +29,6 @@ interface MonthViewProps {
 
 export function MonthView({ filters }: MonthViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [shareSessions, setShareSessions] = useState<ClassSessionWithRelations[]>([]);
-  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -51,16 +48,6 @@ export function MonthView({ filters }: MonthViewProps) {
   const goToPreviousMonth = () => setCurrentMonth((d) => addMonths(d, -1));
   const goToNextMonth = () => setCurrentMonth((d) => addMonths(d, 1));
   const goToCurrentMonth = () => setCurrentMonth(new Date());
-
-  const handleShareSession = (session: ClassSessionWithRelations) => {
-    setShareSessions([session]);
-    setIsShareOpen(true);
-  };
-
-  const handleCloseShare = () => {
-    setIsShareOpen(false);
-    setShareSessions([]);
-  };
 
   if (isLoading) {
     return (
@@ -130,11 +117,7 @@ export function MonthView({ filters }: MonthViewProps) {
               </div>
               <div className="space-y-1">
                 {daySessions.slice(0, MAX_VISIBLE_SESSIONS).map((session) => (
-                  <SessionPill
-                    key={session.id}
-                    session={session}
-                    onShare={() => handleShareSession(session)}
-                  />
+                  <SessionPill key={session.id} session={session} />
                 ))}
                 {daySessions.length > MAX_VISIBLE_SESSIONS && (
                   <div className="text-xs text-gray-500 pl-1">
@@ -146,34 +129,24 @@ export function MonthView({ filters }: MonthViewProps) {
           );
         })}
       </div>
-
-      {isShareOpen && shareSessions.length > 0 && (
-        <ShareCalendarModal
-          sessions={shareSessions}
-          centreId={shareSessions[0].centreId}
-          onClose={handleCloseShare}
-        />
-      )}
     </div>
   );
 }
 
 interface SessionPillProps {
   session: ClassSessionWithRelations;
-  onShare: () => void;
 }
 
-function SessionPill({ session, onShare }: SessionPillProps) {
+function SessionPill({ session }: SessionPillProps) {
   const bgColor = session.course.colorHex ?? '#3b82f6';
 
   return (
     <div
-      className="rounded px-1.5 py-0.5 text-xs truncate cursor-pointer hover:opacity-80 transition-opacity group relative"
+      className="rounded px-1.5 py-0.5 text-xs truncate cursor-pointer hover:opacity-80 transition-opacity"
       style={{
         backgroundColor: `${bgColor}20`,
         borderLeft: `2px solid ${bgColor}`,
       }}
-      onClick={onShare}
     >
       <div className="font-medium text-gray-900 truncate">{session.className}</div>
       <div className="text-gray-500 truncate">

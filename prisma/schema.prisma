@@ -17,7 +17,6 @@ model Centre {
   address   String?
   rooms     Room[]
   sessions  ClassSession[]
-  googleIntegration GoogleIntegration?
   managers  User[]   @relation("CentreManager")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -81,67 +80,6 @@ model ClassSession {
   @@index([roomId, date])
   @@index([teacherId, date])
   @@index([centreId, date])
-  calendarShares CalendarShare[]
-}
-
-model GoogleIntegration {
-  id                String   @id @default(cuid())
-  centreId          String   @unique
-  centre            Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
-  
-  clientId          String
-  clientSecret      String
-  serviceAccountEmail String
-  serviceAccountKey String
-  
-  verifiedDomain    String
-  isDomainVerified  Boolean  @default(false)
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([centreId, isDomainVerified])
-}
-
-model CalendarShare {
-  id                String   @id @default(cuid())
-  
-  classSessionId    String
-  classSession      ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
-  
-  teacherEmail      String
-  teacherName       String?
-  
-  permission        SharePermission @default(READER)
-  sendEmailNotification Boolean @default(true)
-  
-  googleEventId     String?
-  googleCalendarId  String?
-  
-  status            ShareStatus @default(PENDING)
-  lastSyncAt        DateTime?
-  errorMessage      String?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@unique([classSessionId, teacherEmail])
-  @@index([teacherEmail, status])
-  @@index([classSessionId, status])
-}
-
-enum SharePermission {
-  READER
-  WRITER
-  OWNER
-}
-
-enum ShareStatus {
-  PENDING
-  SENT
-  ACCEPTED
-  REVOKED
-  FAILED
 }
 
 enum UserRole {

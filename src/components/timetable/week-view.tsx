@@ -1,5 +1,5 @@
 /**
- * Week view component showing a 7-day time grid with draggable session blocks.
+ * Week view component showing a 7-day time grid with session blocks.
  * @module components/timetable/week-view
  */
 
@@ -7,11 +7,9 @@
 
 import { useState } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
-import { Calendar } from 'lucide-react';
 import { useSessions } from '@/hooks/use-sessions';
 import { generateTimeSlots, timeToMinutes, formatDate } from '@/lib/utils';
 import { SessionForm } from './session-form';
-import { ShareCalendarModal } from './share-calendar-modal';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const START_HOUR = 8;
@@ -26,8 +24,6 @@ export function WeekView({ filters }: WeekViewProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState<ClassSessionWithRelations | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [shareSessions, setShareSessions] = useState<ClassSessionWithRelations[]>([]);
-  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -58,16 +54,6 @@ export function WeekView({ filters }: WeekViewProps) {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setSelectedSession(null);
-  };
-
-  const handleShareSession = (session: ClassSessionWithRelations) => {
-    setShareSessions([session]);
-    setIsShareOpen(true);
-  };
-
-  const handleCloseShare = () => {
-    setIsShareOpen(false);
-    setShareSessions([]);
   };
 
   if (isLoading) {
@@ -149,7 +135,7 @@ export function WeekView({ filters }: WeekViewProps) {
                   return (
                     <div
                       key={`${day.toISOString()}-${slot.label}`}
-                      className="min-h-[60px] border-r border-gray-200 relative group"
+                      className="min-h-[60px] border-r border-gray-200 relative"
                       onClick={() => handleAddSession(day)}
                     >
                       {daySessions?.map((session) => (
@@ -157,7 +143,6 @@ export function WeekView({ filters }: WeekViewProps) {
                           key={session.id}
                           session={session}
                           onClick={() => handleEditSession(session)}
-                          onShare={() => handleShareSession(session)}
                         />
                       ))}
                     </div>
@@ -176,14 +161,6 @@ export function WeekView({ filters }: WeekViewProps) {
           defaultDate={selectedSession ? undefined : new Date()}
         />
       )}
-
-      {isShareOpen && (
-        <ShareCalendarModal
-          sessions={shareSessions}
-          centreId={shareSessions[0]?.centreId ?? ''}
-          onClose={handleCloseShare}
-        />
-      )}
     </div>
   );
 }
@@ -191,10 +168,9 @@ export function WeekView({ filters }: WeekViewProps) {
 interface SessionBlockProps {
   session: ClassSessionWithRelations;
   onClick: () => void;
-  onShare: () => void;
 }
 
-function SessionBlock({ session, onClick, onShare }: SessionBlockProps) {
+function SessionBlock({ session, onClick }: SessionBlockProps) {
   const startMinutes = timeToMinutes(session.startTime);
   const endMinutes = timeToMinutes(session.endTime);
   const duration = endMinutes - startMinutes;
@@ -205,7 +181,7 @@ function SessionBlock({ session, onClick, onShare }: SessionBlockProps) {
 
   return (
     <div
-      className="absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer hover:opacity-90 transition-opacity overflow-hidden group"
+      className="absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
       style={{
         top: `${topOffset}px`,
         height: `${Math.max(height, 24)}px`,
@@ -222,15 +198,6 @@ function SessionBlock({ session, onClick, onShare }: SessionBlockProps) {
         {session.startTime} - {session.endTime}
       </div>
       <div className="text-gray-500 truncate">{session.room.name}</div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onShare();
-        }}
-        className="absolute top-1 right-1 p-0.5 bg-white/80 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-      >
-        <Calendar className="w-3 h-3 text-gray-600" />
-      </button>
     </div>
   );
 }

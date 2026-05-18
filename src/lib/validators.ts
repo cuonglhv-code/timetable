@@ -67,27 +67,9 @@ export const filterSchema = z.object({
   searchQuery: z.string().optional(),
 });
 
-export const googleIntegrationSchema = z.object({
-  centreId: z.string().min(1, 'Centre is required'),
-  clientId: z.string().min(1, 'Client ID is required'),
-  clientSecret: z.string().min(1, 'Client Secret is required'),
-  serviceAccountEmail: z.string().email('Invalid service account email'),
-  serviceAccountKey: z.string().min(1, 'Service account key is required'),
-  verifiedDomain: z.string().min(1, 'Domain is required'),
-});
-
-export const calendarShareSchema = z.object({
-  classSessionId: z.string().min(1, 'Class session is required'),
-  teacherEmail: z.string().email('Invalid email'),
-  permission: z.enum(['READER', 'WRITER', 'OWNER']).default('READER'),
-  sendEmailNotification: z.boolean().default(true),
-});
-
 export type CentreInput = z.infer<typeof centreSchema>;
 export type RoomInput = z.infer<typeof roomSchema>;
 export type CourseInput = z.infer<typeof courseSchema>;
 export type TeacherInput = z.infer<typeof teacherSchema>;
 export type SessionInput = z.infer<typeof sessionSchema>;
 export type FilterInput = z.infer<typeof filterSchema>;
-export type GoogleIntegrationInput = z.infer<typeof googleIntegrationSchema>;
-export type CalendarShareInput = z.infer<typeof calendarShareSchema>;

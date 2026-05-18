@@ -6,8 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Building, DoorOpen, BookOpen, Users, Settings, Calendar } from 'lucide-react';
-import Link from 'next/link';
+import { Plus, Edit2, Trash2, Building, DoorOpen, BookOpen, Users, Settings } from 'lucide-react';
 import { useCentres, useCreateCentre, useDeleteCentre } from '@/hooks/use-centres';
 import { useRooms, useCreateRoom, useDeleteRoom } from '@/hooks/use-rooms';
 import { useCourses, useCreateCourse, useDeleteCourse } from '@/hooks/use-courses';
@@ -162,13 +161,6 @@ function CentresManager() {
               )}
             </div>
             <div className="flex items-center gap-1">
-              <Link
-                href={`/admin/centres/${centre.id}/google-settings`}
-                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Google Calendar Settings"
-              >
-                <Calendar className="w-4 h-4" />
-              </Link>
               <button
                 onClick={() => deleteCentre.mutate(centre.id)}
                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
