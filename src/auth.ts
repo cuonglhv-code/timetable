@@ -4,8 +4,10 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { authConfig } from './auth.config';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
@@ -56,34 +58,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       allowDangerousEmailAccountLinking: true,
     }),
   ],
-  callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.centreId = user.centreId;
-        token.teacherId = user.teacherId;
-      }
-      if (trigger === 'update' && session) {
-        token.name = session.name;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.centreId = token.centreId as string | null;
-        session.user.teacherId = token.teacherId as string | null;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: '/login',
-  },
-  session: {
-    strategy: 'jwt',
-    maxAge: 8 * 60 * 60,
-  },
 });
