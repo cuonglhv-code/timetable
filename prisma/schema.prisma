@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  engineType    = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Centre {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  rooms     Room[]
+  sessions  ClassSession[]
+  googleIntegration GoogleIntegration?
+  managers  User[]   @relation("CentreManager")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  centreId  String
+  centre    Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int?
+  isActive  Boolean  @default(true)
+  sessions  ClassSession[]
+  
+  @@unique([centreId, name])
+  @@index([centreId, isActive])
+}
+
+model Course {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String
+  colorHex  String?
+  sessions  ClassSession[]
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  isActive  Boolean  @default(true)
+  sessions  ClassSession[]
+  user      User?
+}
+
+model ClassSession {
+  id        String   @id @default(cuid())
+  className String
+  
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  
+  centreId  String
+  centre    Centre   @relation(fields: [centreId], references: [id], onDelete: Restrict)
+  
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  
+  date      DateTime
+  startTime String
+  endTime   String
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId, date])
+  @@index([teacherId, date])
+  @@index([centreId, date])
+  calendarShares CalendarShare[]
+}
+
+model GoogleIntegration {
+  id                String   @id @default(cuid())
+  centreId          String   @unique
+  centre            Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  
+  clientId          String
+  clientSecret      String
+  serviceAccountEmail String
+  serviceAccountKey String
+  
+  verifiedDomain    String
+  isDomainVerified  Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([centreId, isDomainVerified])
+}
+
+model CalendarShare {
+  id                String   @id @default(cuid())
+  
+  classSessionId    String
+  classSession      ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  
+  teacherEmail      String
+  teacherName       String?
+  
+  permission        SharePermission @default(READER)
+  sendEmailNotification Boolean @default(true)
+  
+  googleEventId     String?
+  googleCalendarId  String?
+  
+  status            ShareStatus @default(PENDING)
+  lastSyncAt        DateTime?
+  errorMessage      String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([classSessionId, teacherEmail])
+  @@index([teacherEmail, status])
+  @@index([classSessionId, status])
+}
+
+enum SharePermission {
+  READER
+  WRITER
+  OWNER
+}
+
+enum ShareStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  REVOKED
+  FAILED
+}
+
+enum UserRole {
+  CENTRAL_ADMIN
+  CENTRE_MANAGER
+  ACADEMIC_SUPERVISOR
+  TEACHER
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        UserRole @default(TEACHER)
+  centreId    String?  @db.VarChar(255)
+  centre      Centre?  @relation("CentreManager", fields: [centreId], references: [id], onDelete: SetNull)
+  teacherId   String?  @unique @db.VarChar(255)
+  teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  isActive    Boolean  @default(true)
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email, isActive])
+  @@index([role, isActive])
+}
