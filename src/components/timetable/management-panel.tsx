@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Building, DoorOpen, BookOpen, Users, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building, DoorOpen, BookOpen, Users, Settings, Search, Filter } from 'lucide-react';
 import { useCentres, useCreateCentre, useDeleteCentre } from '@/hooks/use-centres';
 import { useRooms, useCreateRoom, useDeleteRoom } from '@/hooks/use-rooms';
 import { useCourses, useCreateCourse, useDeleteCourse } from '@/hooks/use-courses';
@@ -283,6 +283,11 @@ function CoursesManager() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [colorHex, setColorHex] = useState('#3b82f6');
+  
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+
   const { data: courses, isLoading } = useCourses();
   const createCourse = useCreateCourse();
   const deleteCourse = useDeleteCourse();
@@ -301,6 +306,20 @@ function CoursesManager() {
   };
 
   if (isLoading) return <div className="text-gray-500">Loading...</div>;
+
+  // Extract all unique categories
+  const categories = courses 
+    ? ['ALL', ...Array.from(new Set(courses.map(c => c.category)))]
+    : ['ALL'];
+
+  // Filter courses based on search term and selected category
+  const filteredCourses = courses?.filter((course) => {
+    const matchesSearch = 
+      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'ALL' || course.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div>
@@ -360,8 +379,38 @@ function CoursesManager() {
         </form>
       )}
 
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search courses by name or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-400 hidden sm:inline" />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="block w-full sm:w-48 pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'ALL' ? 'All Categories' : cat}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="space-y-2">
-        {courses?.map((course) => (
+        {filteredCourses?.map((course) => (
           <div
             key={course.id}
             className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
@@ -384,8 +433,10 @@ function CoursesManager() {
             </button>
           </div>
         ))}
-        {courses?.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No courses yet</div>
+        {filteredCourses?.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            {courses?.length === 0 ? 'No courses yet' : 'No courses match your search or filter'}
+          </div>
         )}
       </div>
     </div>
