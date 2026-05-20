@@ -92,3 +92,45 @@ export function parseDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
+
+/**
+ * Determine the status of a class session based on the current system time.
+ */
+export function getSessionStatus(
+  dateVal: string | Date,
+  startTime: string,
+  endTime: string
+): 'PLANNING' | 'ON_GOING' | 'FINISHED' {
+  const now = new Date();
+  
+  // Extract YYYY-MM-DD literally to bypass timezone shifting
+  let dateStr = '';
+  if (typeof dateVal === 'string') {
+    dateStr = dateVal.split('T')[0];
+  } else if (dateVal instanceof Date) {
+    dateStr = dateVal.toISOString().split('T')[0];
+  } else {
+    dateStr = new Date(dateVal).toISOString().split('T')[0];
+  }
+  
+  const [year, month, day] = dateStr.split('-').map(Number);
+  
+  // Create start Date object
+  const sessionStart = new Date(year, month - 1, day);
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  sessionStart.setHours(startHour, startMin, 0, 0);
+
+  // Create end Date object
+  const sessionEnd = new Date(year, month - 1, day);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+  sessionEnd.setHours(endHour, endMin, 0, 0);
+  
+  if (now < sessionStart) {
+    return 'PLANNING';
+  } else if (now > sessionEnd) {
+    return 'FINISHED';
+  } else {
+    return 'ON_GOING';
+  }
+}
+

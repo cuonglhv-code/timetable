@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { useSessions } from '@/hooks/use-sessions';
-import { generateTimeSlots, timeToMinutes, formatDate } from '@/lib/utils';
+import { generateTimeSlots, timeToMinutes, formatDate, cn, getSessionStatus } from '@/lib/utils';
 import { SessionForm } from './session-form';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
@@ -177,27 +177,51 @@ function SessionBlock({ session, onClick }: SessionBlockProps) {
   const topOffset = ((startMinutes % 60) / 60) * 60;
   const height = (duration / 60) * 60;
 
-  const bgColor = session.course.colorHex ?? '#3b82f6';
+  const status = getSessionStatus(session.date, session.startTime, session.endTime);
+
+  let borderStyle = '';
+  let bgStyle = '';
+  let textStyle = '';
+
+  if (status === 'PLANNING') {
+    // Yellow
+    bgStyle = '#fef3c7'; // amber-100
+    borderStyle = '#fbbf24'; // amber-400
+    textStyle = 'text-amber-900 border-amber-400';
+  } else if (status === 'ON_GOING') {
+    // Green
+    bgStyle = '#dcfce7'; // emerald-100
+    borderStyle = '#34d399'; // emerald-400
+    textStyle = 'text-emerald-900 border-emerald-400 font-semibold shadow-sm ring-1 ring-emerald-400/20';
+  } else {
+    // Finished (Red)
+    bgStyle = '#fee2e2'; // rose-100
+    borderStyle = '#f87171'; // rose-400
+    textStyle = 'text-rose-900 border-rose-400 opacity-80';
+  }
 
   return (
     <div
-      className="absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
+      className={cn(
+        "absolute left-1 right-1 rounded-md px-2 py-1 text-xs cursor-pointer hover:opacity-90 transition-all overflow-hidden border-l-[3px]",
+        textStyle
+      )}
       style={{
         top: `${topOffset}px`,
         height: `${Math.max(height, 24)}px`,
-        backgroundColor: `${bgColor}20`,
-        borderLeft: `3px solid ${bgColor}`,
+        backgroundColor: bgStyle,
+        borderLeftColor: borderStyle,
       }}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
     >
-      <div className="font-medium text-gray-900 truncate">{session.className}</div>
-      <div className="text-gray-600 truncate">
+      <div className="font-semibold truncate">{session.className}</div>
+      <div className="opacity-90 truncate">
         {session.startTime} - {session.endTime}
       </div>
-      <div className="text-gray-500 truncate">{session.room.name}</div>
+      <div className="opacity-80 truncate">{session.room.name}</div>
     </div>
   );
 }

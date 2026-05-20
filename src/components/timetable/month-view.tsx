@@ -18,7 +18,7 @@ import {
   addMonths,
 } from 'date-fns';
 import { useSessions } from '@/hooks/use-sessions';
-import { formatDate } from '@/lib/utils';
+import { formatDate, cn, getSessionStatus } from '@/lib/utils';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const MAX_VISIBLE_SESSIONS = 3;
@@ -138,18 +138,42 @@ interface SessionPillProps {
 }
 
 function SessionPill({ session }: SessionPillProps) {
-  const bgColor = session.course.colorHex ?? '#3b82f6';
+  const status = getSessionStatus(session.date, session.startTime, session.endTime);
+
+  let borderStyle = '';
+  let bgStyle = '';
+  let textStyle = '';
+
+  if (status === 'PLANNING') {
+    // Yellow
+    bgStyle = '#fef3c7'; // amber-100
+    borderStyle = '#fbbf24'; // amber-400
+    textStyle = 'text-amber-900 border-amber-400';
+  } else if (status === 'ON_GOING') {
+    // Green
+    bgStyle = '#dcfce7'; // emerald-100
+    borderStyle = '#34d399'; // emerald-400
+    textStyle = 'text-emerald-900 border-emerald-400 font-semibold shadow-sm ring-1 ring-emerald-400/20';
+  } else {
+    // Finished (Red)
+    bgStyle = '#fee2e2'; // rose-100
+    borderStyle = '#f87171'; // rose-400
+    textStyle = 'text-rose-900 border-rose-400 opacity-80';
+  }
 
   return (
     <div
-      className="rounded px-1.5 py-0.5 text-xs truncate cursor-pointer hover:opacity-80 transition-opacity"
+      className={cn(
+        "rounded px-1.5 py-0.5 text-xs truncate cursor-pointer hover:opacity-80 transition-all border-l-2",
+        textStyle
+      )}
       style={{
-        backgroundColor: `${bgColor}20`,
-        borderLeft: `2px solid ${bgColor}`,
+        backgroundColor: bgStyle,
+        borderLeftColor: borderStyle,
       }}
     >
-      <div className="font-medium text-gray-900 truncate">{session.className}</div>
-      <div className="text-gray-500 truncate">
+      <div className="font-semibold truncate">{session.className}</div>
+      <div className="opacity-80 truncate">
         {session.startTime} · {session.room.name}
       </div>
     </div>

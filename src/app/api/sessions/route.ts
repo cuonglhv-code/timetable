@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sessionSchema, filterSchema } from '@/lib/validators';
-import { isTimeOverlap } from '@/lib/utils';
+import { isTimeOverlap, parseDate } from '@/lib/utils';
 import { requireAuth, canAccessCentre, canDeleteSession, getTeacherSessions } from '@/lib/auth/authorization';
 
 export async function GET(request: NextRequest) {
@@ -84,6 +84,117 @@ export async function POST(request: NextRequest) {
 
     if (user.role === 'CENTRE_MANAGER' && user.centreId !== centreId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { isRecurring, recurringDays, repeatUntil } = body;
+
+    if (isRecurring) {
+      // Validate recurrence fields
+      if (!Array.isArray(recurringDays) || recurringDays.length === 0) {
+        return NextResponse.json(
+          { error: 'Invalid input: recurringDays must be a non-empty array' },
+          { status: 400 }
+        );
+      }
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (typeof repeatUntil !== 'string' || !dateRegex.test(repeatUntil)) {
+        return NextResponse.json(
+          { error: 'Invalid input: repeatUntil must be in YYYY-MM-DD format' },
+          { status: 400 }
+        );
+      }
+      if (repeatUntil < date) {
+        return NextResponse.json(
+          { error: 'Invalid input: repeatUntil must be on or after start date' },
+          { status: 400 }
+        );
+      }
+
+      // Generate matching dates in timezone-safe literal local format
+      const start = parseDate(date);
+      const end = parseDate(repeatUntil);
+      const datesToCreate: Date[] = [];
+
+      const DAY_MAP: Record<string, number> = {
+        'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6,
+        'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6,
+      };
+
+      const targetDays = recurringDays.map((d: string) => {
+        const val = DAY_MAP[d.toLowerCase()];
+        return val !== undefined ? val : parseInt(d);
+      });
+
+      const current = new Date(start);
+      while (current <= end) {
+        if (targetDays.includes(current.getDay())) {
+          datesToCreate.push(new Date(current));
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      if (datesToCreate.length === 0) {
+        return NextResponse.json(
+          { error: 'No matching dates found for the selected weekdays within the date range' },
+          { status: 400 }
+        );
+      }
+
+      // Check conflicts for all dates
+      const conflicts = [];
+      for (const d of datesToCreate) {
+        const conflict = await checkConflicts(roomId, teacherId, d, startTime, endTime);
+        if (conflict.hasConflict) {
+          conflicts.push({
+            date: d.toISOString().split('T')[0],
+            type: conflict.conflictType,
+            session: conflict.conflictingSession,
+          });
+        }
+      }
+
+      if (conflicts.length > 0) {
+        const firstConflict = conflicts[0];
+        const formattedDate = firstConflict.date.split('-').reverse().join('/'); // e.g. 21/05/2026
+        const conflictTypeLabel = firstConflict.type === 'room' ? 'Room' : 'Teacher';
+        const conflictingClassName = firstConflict.session?.className || 'another class';
+
+        return NextResponse.json(
+          {
+            error: `Scheduling conflict detected on ${formattedDate}: ${conflictTypeLabel} is already booked for class "${conflictingClassName}"`,
+            conflicts,
+          },
+          { status: 409 }
+        );
+      }
+
+      // Create all sessions in a transaction
+      const sessions = await prisma.$transaction(
+        datesToCreate.map((d) =>
+          prisma.classSession.create({
+            data: {
+              className,
+              courseId,
+              teacherId,
+              centreId,
+              roomId,
+              date: d,
+              startTime,
+              endTime,
+              notes: notes ?? null,
+            },
+            include: {
+              course: true,
+              teacher: true,
+              centre: true,
+              room: true,
+            },
+          })
+        )
+      );
+
+      // Return the first created session as the main reference response
+      return NextResponse.json(sessions[0], { status: 201 });
     }
 
     const dateObj = new Date(date);
