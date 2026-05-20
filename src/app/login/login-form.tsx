@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, BookOpen, Lock, Mail } from 'lucide-react';
 
 export function LoginForm() {
   const router = useRouter();
@@ -20,78 +20,97 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
+      const result = await signIn('credentials', { email, password, redirect: false });
       if (result?.error) {
-        setError('Invalid email or password');
+        setError('Invalid email or password. Please try again.');
       } else {
         router.push(callbackUrl);
         router.refresh();
       }
     } catch {
-      setError('An error occurred. Please try again.');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Timetable Manager</h1>
-          <p className="text-gray-500 mt-1">Sign in to your account</p>
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+         style={{ background: 'linear-gradient(135deg, #0d1117 0%, #0f172a 50%, #130a24 100%)' }}>
+
+      {/* Background orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl pointer-events-none"
+           style={{ background: 'radial-gradient(circle, #6366f1, transparent)' }} />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full opacity-8 blur-3xl pointer-events-none"
+           style={{ background: 'radial-gradient(circle, #a78bfa, transparent)' }} />
+
+      <div className="w-full max-w-md animate-fade-up">
+
+        {/* Logo & Brand */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+               style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="heading-xl mb-1">Jaxtina</h1>
+          <p className="muted">Timetable Manager — Sign in to continue</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+        {/* Card */}
+        <div className="card p-8"
+             style={{ background: 'rgba(22,27,34,0.90)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.10)' }}>
+
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-              {error}
+            <div className="flex items-center gap-2 mb-5 p-3 rounded-lg text-sm animate-fade-in"
+                 style={{ background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.30)', color: '#fca5a5' }}>
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="you@school.edu"
-                required
-              />
+              <label htmlFor="email" className="label block mb-2">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                      style={{ color: 'var(--text-muted)' }} />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="field pl-10"
+                  placeholder="you@jaxtina.edu.vn"
+                  required
+                  autoComplete="email"
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <label htmlFor="password" className="label block mb-2">Password</label>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                      style={{ color: 'var(--text-muted)' }} />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="field pl-10 pr-10"
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword
+                    ? <EyeOff className="w-4 h-4" />
+                    : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -99,19 +118,21 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full justify-center py-2.5 text-base mt-2"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Signing in...
                 </>
-              ) : (
-                'Sign In'
-              )}
+              ) : 'Sign In'}
             </button>
           </form>
         </div>
+
+        <p className="text-center mt-6 muted text-xs">
+          © {new Date().getFullYear()} Jaxtina Education. All rights reserved.
+        </p>
       </div>
     </div>
   );

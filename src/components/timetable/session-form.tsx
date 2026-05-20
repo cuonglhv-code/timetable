@@ -1,20 +1,16 @@
-/**
- * Session form for creating and editing class sessions.
- * @module components/timetable/session-form
- */
-
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
+import { X, User, Building, DoorOpen, BookOpen, Clock, CalendarDays, Repeat, AlertTriangle } from 'lucide-react';
 import { useCentres } from '@/hooks/use-centres';
 import { useRooms } from '@/hooks/use-rooms';
 import { useCourses } from '@/hooks/use-courses';
 import { useTeachers } from '@/hooks/use-teachers';
 import { useCreateSession, useUpdateSession, type SessionInput } from '@/hooks/use-sessions';
 import { sessionSchema } from '@/lib/validators';
+import { useToast } from '@/components/ui/toast';
 import type { ClassSessionWithRelations } from '@/types';
 
 interface SessionFormProps {
@@ -35,13 +31,25 @@ type SessionFormData = {
   notes?: string | null;
 };
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function FieldLabel({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-1.5 label mb-1.5">
+      <span style={{ color: 'var(--text-muted)' }}>{icon}</span>
+      {children}
+    </label>
+  );
+}
+
 export function SessionForm({ session, onClose, defaultDate }: SessionFormProps) {
-  const { data: centres } = useCentres();
-  const { data: rooms } = useRooms();
-  const { data: courses } = useCourses();
+  const { data: centres }  = useCentres();
+  const { data: rooms }    = useRooms();
+  const { data: courses }  = useCourses();
   const { data: teachers } = useTeachers();
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
+  const { success, error: toastError } = useToast();
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -50,18 +58,11 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
   const [recurringError, setRecurringError] = useState<string | null>(null);
 
   const handleDayToggle = (day: string) => {
-    setRecurringDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    setRecurringDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
     setRecurringError(null);
   };
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<SessionFormData>({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<SessionFormData>({
     resolver: zodResolver(sessionSchema),
     defaultValues: session
       ? {
@@ -83,7 +84,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           roomId: '',
           date: defaultDate ? defaultDate.toISOString().split('T')[0] : '',
           startTime: '08:00',
-          endTime: '09:00',
+          endTime: '09:30',
           notes: '',
         },
   });
@@ -95,318 +96,196 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
     try {
       if (session) {
         await updateSession.mutateAsync({ id: session.id, data: data as Partial<SessionInput> });
+        success('Session Updated', `"${data.className}" has been updated.`);
       } else {
         if (isRecurring) {
-          if (recurringDays.length === 0) {
-            setRecurringError('Please select at least one day of the week');
-            return;
-          }
-          if (!repeatUntil) {
-            setRecurringError('Please select a repeat end date');
-            return;
-          }
-          if (repeatUntil < data.date) {
-            setRecurringError('Repeat end date must be on or after start date');
-            return;
-          }
-
-          await createSession.mutateAsync({
-            ...(data as SessionInput),
-            isRecurring: true,
-            recurringDays,
-            repeatUntil,
-          } as any);
+          if (recurringDays.length === 0) { setRecurringError('Please select at least one day'); return; }
+          if (!repeatUntil) { setRecurringError('Please select a repeat end date'); return; }
+          if (repeatUntil < data.date) { setRecurringError('End date must be on or after start date'); return; }
+          await createSession.mutateAsync({ ...(data as SessionInput), isRecurring: true, recurringDays, repeatUntil } as any);
+          success('Recurring Sessions Created', `Sessions for "${data.className}" scheduled successfully.`);
         } else {
           await createSession.mutateAsync(data as SessionInput);
+          success('Session Created', `"${data.className}" has been added to the timetable.`);
         }
       }
       onClose();
-    } catch (error) {
-      console.error('Error saving session:', error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to save session');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save session';
+      setSubmitError(msg);
+      toastError('Failed to Save', msg);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {session ? 'Edit Session' : 'Add Session'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'var(--bg-overlay)' }}>
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl animate-fade-up"
+           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b"
+             style={{ borderColor: 'var(--border-subtle)' }}>
+          <div>
+            <h2 className="heading-md">{session ? 'Edit Session' : 'Add Session'}</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {session ? 'Update the session details below' : 'Fill in the details for the new class session'}
+            </p>
+          </div>
+          <button onClick={onClose} className="btn-ghost p-2">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Error banner */}
         {submitError && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium flex items-start gap-2">
+          <div className="mx-6 mt-5 p-3 rounded-lg flex items-start gap-2 text-sm animate-fade-in"
+               style={{ background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.25)', color: '#fca5a5' }}>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span className="flex-1">{submitError}</span>
-            <button
-              type="button"
-              onClick={() => setSubmitError(null)}
-              className="hover:text-red-900 font-bold focus:outline-none"
-            >
-              ×
+            <button onClick={() => setSubmitError(null)} style={{ color: '#f87171' }}>
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
+
+          {/* Class Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Class Name
-            </label>
-            <input
-              {...register('className')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., IELTS Advanced A"
-            />
-            {errors.className && (
-              <p className="mt-1 text-xs text-red-600">{errors.className.message}</p>
-            )}
+            <FieldLabel icon={<BookOpen className="w-3.5 h-3.5" />}>Class Name</FieldLabel>
+            <input {...register('className')} className="field"
+                   placeholder="e.g., IELTS Achiever 1 — Group A" />
+            {errors.className && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.className.message}</p>}
           </div>
 
+          {/* Course + Teacher */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Course
-              </label>
-              <select
-                {...register('courseId')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <FieldLabel icon={<BookOpen className="w-3.5 h-3.5" />}>Course</FieldLabel>
+              <select {...register('courseId')} className="field">
                 <option value="">Select course</option>
-                {courses?.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
-                  </option>
-                ))}
+                {courses?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              {errors.courseId && (
-                <p className="mt-1 text-xs text-red-600">{errors.courseId.message}</p>
-              )}
+              {errors.courseId && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.courseId.message}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Teacher
-              </label>
-              <select
-                {...register('teacherId')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <FieldLabel icon={<User className="w-3.5 h-3.5" />}>Teacher</FieldLabel>
+              <select {...register('teacherId')} className="field">
                 <option value="">Select teacher</option>
-                {teachers?.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.name}
-                  </option>
-                ))}
+                {teachers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              {errors.teacherId && (
-                <p className="mt-1 text-xs text-red-600">{errors.teacherId.message}</p>
-              )}
+              {errors.teacherId && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.teacherId.message}</p>}
             </div>
           </div>
 
+          {/* Centre + Room */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Centre
-              </label>
-              <select
-                {...register('centreId')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <FieldLabel icon={<Building className="w-3.5 h-3.5" />}>Centre</FieldLabel>
+              <select {...register('centreId')} className="field">
                 <option value="">Select centre</option>
-                {centres?.map((centre) => (
-                  <option key={centre.id} value={centre.id}>
-                    {centre.name}
-                  </option>
-                ))}
+                {centres?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              {errors.centreId && (
-                <p className="mt-1 text-xs text-red-600">{errors.centreId.message}</p>
-              )}
+              {errors.centreId && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.centreId.message}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Room
-              </label>
-              <select
-                {...register('roomId')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!selectedCentreId}
-              >
+              <FieldLabel icon={<DoorOpen className="w-3.5 h-3.5" />}>Room</FieldLabel>
+              <select {...register('roomId')} className="field" disabled={!selectedCentreId}>
                 <option value="">Select room</option>
-                {rooms
-                  ?.filter((r) => r.centreId === selectedCentreId && r.isActive)
-                  .map((room) => (
-                    <option key={room.id} value={room.id}>
-                      {room.name}
-                    </option>
-                  ))}
+                {rooms?.filter(r => r.centreId === selectedCentreId && r.isActive)
+                       .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              {errors.roomId && (
-                <p className="mt-1 text-xs text-red-600">{errors.roomId.message}</p>
-              )}
+              {errors.roomId && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.roomId.message}</p>}
             </div>
           </div>
 
+          {/* Date + Start + End */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date
-              </label>
-              <input
-                {...register('date')}
-                type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.date && (
-                <p className="mt-1 text-xs text-red-600">{errors.date.message}</p>
-              )}
+              <FieldLabel icon={<CalendarDays className="w-3.5 h-3.5" />}>Date</FieldLabel>
+              <input {...register('date')} type="date" className="field" />
+              {errors.date && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.date.message}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Time
-              </label>
-              <input
-                {...register('startTime')}
-                type="time"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.startTime && (
-                <p className="mt-1 text-xs text-red-600">{errors.startTime.message}</p>
-              )}
+              <FieldLabel icon={<Clock className="w-3.5 h-3.5" />}>Start Time</FieldLabel>
+              <input {...register('startTime')} type="time" className="field" />
+              {errors.startTime && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.startTime.message}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Time
-              </label>
-              <input
-                {...register('endTime')}
-                type="time"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.endTime && (
-                <p className="mt-1 text-xs text-red-600">{errors.endTime.message}</p>
-              )}
+              <FieldLabel icon={<Clock className="w-3.5 h-3.5" />}>End Time</FieldLabel>
+              <input {...register('endTime')} type="time" className="field" />
+              {errors.endTime && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.endTime.message}</p>}
             </div>
           </div>
 
-          {/* New Repeat Weekly Schedule Option */}
+          {/* Recurring toggle — new sessions only */}
           {!session && (
-            <div className="space-y-3 border-t border-gray-100 pt-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700 font-semibold">Repeat Weekly</label>
+            <div className="space-y-3 pt-1 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4" style={{ color: 'var(--brand-primary)' }} />
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Repeat Weekly</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsRecurring(!isRecurring);
-                    setRecurringError(null);
-                    const currentDateVal = watch('date');
-                    if (currentDateVal && !repeatUntil) {
-                      setRepeatUntil(currentDateVal);
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isRecurring ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                  onClick={() => { setIsRecurring(!isRecurring); setRecurringError(null); }}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none`}
+                  style={{ background: isRecurring ? 'var(--brand-primary)' : 'rgba(255,255,255,0.15)' }}
                 >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isRecurring ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ${isRecurring ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
               </div>
 
               {isRecurring && (
-                <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200 transition-all duration-200">
+                <div className="space-y-4 p-4 rounded-xl animate-fade-in"
+                     style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)' }}>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                      Select Days of the Week
-                    </label>
+                    <p className="label mb-2.5">Days of the Week</p>
                     <div className="flex flex-wrap gap-2">
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
-                        const isSelected = recurringDays.includes(day);
+                      {WEEKDAYS.map(day => {
+                        const selected = recurringDays.includes(day);
                         return (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => handleDayToggle(day)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                              isSelected
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
+                          <button key={day} type="button" onClick={() => handleDayToggle(day)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                  style={selected
+                                    ? { background: 'var(--brand-primary)', color: '#fff', boxShadow: '0 2px 8px rgba(99,102,241,0.4)' }
+                                    : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }
+                                  }>
                             {day.slice(0, 3)}
                           </button>
                         );
                       })}
                     </div>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Repeat Until
-                    </label>
-                    <input
-                      type="date"
-                      value={repeatUntil}
-                      onChange={(e) => {
-                        setRepeatUntil(e.target.value);
-                        setRecurringError(null);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    />
+                    <label className="label block mb-1.5">Repeat Until</label>
+                    <input type="date" value={repeatUntil}
+                           onChange={e => { setRepeatUntil(e.target.value); setRecurringError(null); }}
+                           className="field" />
                   </div>
-
                   {recurringError && (
-                    <p className="text-xs text-red-600 font-medium">{recurringError}</p>
+                    <p className="text-xs font-medium flex items-center gap-1.5" style={{ color: '#f87171' }}>
+                      <AlertTriangle className="w-3.5 h-3.5" />{recurringError}
+                    </p>
                   )}
                 </div>
               )}
             </div>
           )}
 
+          {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
-            </label>
-            <textarea
-              {...register('notes')}
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Optional notes..."
-            />
-            {errors.notes && (
-              <p className="mt-1 text-xs text-red-600">{errors.notes.message}</p>
-            )}
+            <label className="label block mb-1.5">Notes</label>
+            <textarea {...register('notes')} rows={2} className="field resize-none"
+                      placeholder="Optional notes about this session…" />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : session ? 'Update' : 'Create'}
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary">
+              {isSubmitting ? 'Saving…' : session ? 'Update Session' : (isRecurring ? 'Create Sessions' : 'Create Session')}
             </button>
           </div>
         </form>

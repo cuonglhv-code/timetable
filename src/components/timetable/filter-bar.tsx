@@ -1,11 +1,6 @@
-/**
- * Filter bar for filtering sessions by centre, teacher, course, and search.
- * @module components/timetable/filter-bar
- */
-
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useCentres } from '@/hooks/use-centres';
 import { useTeachers } from '@/hooks/use-teachers';
 import { useCourses } from '@/hooks/use-courses';
@@ -21,66 +16,70 @@ export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
   const { data: teachers } = useTeachers();
   const { data: courses } = useCourses();
 
+  const hasActiveFilters = !!(filters.centreId || filters.teacherId || filters.courseId || filters.searchQuery);
+
+  const clearFilters = () => onFilterChange({});
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+    <div className="card p-4" style={{ background: 'var(--bg-surface)' }}>
+      <div className="flex flex-col sm:flex-row gap-3">
+
+        {/* Search */}
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                  style={{ color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Search classes..."
+            placeholder="Search classes, teachers, courses…"
             value={filters.searchQuery ?? ''}
-            onChange={(e) =>
-              onFilterChange({ ...filters, searchQuery: e.target.value || undefined })
-            }
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={e => onFilterChange({ ...filters, searchQuery: e.target.value || undefined })}
+            className="field pl-9"
           />
         </div>
 
-        <select
-          value={filters.centreId ?? ''}
-          onChange={(e) =>
-            onFilterChange({ ...filters, centreId: e.target.value || undefined })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Centres</option>
-          {centres?.map((centre) => (
-            <option key={centre.id} value={centre.id}>
-              {centre.name}
-            </option>
-          ))}
-        </select>
+        {/* Filters row */}
+        <div className="flex flex-wrap sm:flex-nowrap gap-3 items-center">
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span className="label text-xs">Filters:</span>
+          </div>
 
-        <select
-          value={filters.teacherId ?? ''}
-          onChange={(e) =>
-            onFilterChange({ ...filters, teacherId: e.target.value || undefined })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Teachers</option>
-          {teachers?.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.name}
-            </option>
-          ))}
-        </select>
+          <select
+            value={filters.centreId ?? ''}
+            onChange={e => onFilterChange({ ...filters, centreId: e.target.value || undefined })}
+            className="field"
+            style={{ minWidth: '160px', flex: '1' }}
+          >
+            <option value="">All Centres</option>
+            {centres?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
 
-        <select
-          value={filters.courseId ?? ''}
-          onChange={(e) =>
-            onFilterChange({ ...filters, courseId: e.target.value || undefined })
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Courses</option>
-          {courses?.map((course) => (
-            <option key={course.id} value={course.id}>
-              {course.name}
-            </option>
-          ))}
-        </select>
+          <select
+            value={filters.teacherId ?? ''}
+            onChange={e => onFilterChange({ ...filters, teacherId: e.target.value || undefined })}
+            className="field"
+            style={{ minWidth: '160px', flex: '1' }}
+          >
+            <option value="">All Teachers</option>
+            {teachers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+
+          <select
+            value={filters.courseId ?? ''}
+            onChange={e => onFilterChange({ ...filters, courseId: e.target.value || undefined })}
+            className="field"
+            style={{ minWidth: '160px', flex: '1' }}
+          >
+            <option value="">All Courses</option>
+            {courses?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="btn-ghost flex-shrink-0 gap-1.5 px-3 py-2 text-xs">
+              <X className="w-3.5 h-3.5" /> Clear
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
