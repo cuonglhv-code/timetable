@@ -56,6 +56,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
   const [recurringDays, setRecurringDays] = useState<string[]>([]);
   const [repeatUntil, setRepeatUntil] = useState('');
   const [recurringError, setRecurringError] = useState<string | null>(null);
+  const [isPendingInsert, setIsPendingInsert] = useState(false);
 
   const handleDayToggle = (day: string) => {
     setRecurringDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
@@ -92,6 +93,8 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
   const selectedCentreId = watch('centreId');
 
   const onSubmit = async (data: SessionFormData) => {
+    if (isPendingInsert) return;
+    setIsPendingInsert(true);
     setSubmitError(null);
     try {
       if (session) {
@@ -99,9 +102,21 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
         success('Session Updated', `"${data.className}" has been updated.`);
       } else {
         if (isRecurring) {
-          if (recurringDays.length === 0) { setRecurringError('Please select at least one day'); return; }
-          if (!repeatUntil) { setRecurringError('Please select a repeat end date'); return; }
-          if (repeatUntil < data.date) { setRecurringError('End date must be on or after start date'); return; }
+          if (recurringDays.length === 0) {
+            setRecurringError('Please select at least one day');
+            setIsPendingInsert(false);
+            return;
+          }
+          if (!repeatUntil) {
+            setRecurringError('Please select a repeat end date');
+            setIsPendingInsert(false);
+            return;
+          }
+          if (repeatUntil < data.date) {
+            setRecurringError('End date must be on or after start date');
+            setIsPendingInsert(false);
+            return;
+          }
           await createSession.mutateAsync({ ...(data as SessionInput), isRecurring: true, recurringDays, repeatUntil } as any);
           success('Recurring Sessions Created', `Sessions for "${data.className}" scheduled successfully.`);
         } else {
@@ -114,6 +129,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
       const msg = err instanceof Error ? err.message : 'Failed to save session';
       setSubmitError(msg);
       toastError('Failed to Save', msg);
+      setIsPendingInsert(false);
     }
   };
 
@@ -155,7 +171,8 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           <div>
             <FieldLabel icon={<BookOpen className="w-3.5 h-3.5" />}>Class Name</FieldLabel>
             <input {...register('className')} className="field"
-                   placeholder="e.g., IELTS Achiever 1 — Group A" />
+                   placeholder="e.g., IELTS Achiever 1 — Group A"
+                   disabled={isSubmitting || isPendingInsert} />
             {errors.className && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.className.message}</p>}
           </div>
 
@@ -163,7 +180,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           <div className="grid grid-cols-2 gap-4">
             <div>
               <FieldLabel icon={<BookOpen className="w-3.5 h-3.5" />}>Course</FieldLabel>
-              <select {...register('courseId')} className="field">
+              <select {...register('courseId')} className="field" disabled={isSubmitting || isPendingInsert}>
                 <option value="">Select course</option>
                 {courses?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -171,7 +188,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
             </div>
             <div>
               <FieldLabel icon={<User className="w-3.5 h-3.5" />}>Teacher</FieldLabel>
-              <select {...register('teacherId')} className="field">
+              <select {...register('teacherId')} className="field" disabled={isSubmitting || isPendingInsert}>
                 <option value="">Select teacher</option>
                 {teachers?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
@@ -183,7 +200,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           <div className="grid grid-cols-2 gap-4">
             <div>
               <FieldLabel icon={<Building className="w-3.5 h-3.5" />}>Centre</FieldLabel>
-              <select {...register('centreId')} className="field">
+              <select {...register('centreId')} className="field" disabled={isSubmitting || isPendingInsert}>
                 <option value="">Select centre</option>
                 {centres?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -191,7 +208,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
             </div>
             <div>
               <FieldLabel icon={<DoorOpen className="w-3.5 h-3.5" />}>Room</FieldLabel>
-              <select {...register('roomId')} className="field" disabled={!selectedCentreId}>
+              <select {...register('roomId')} className="field" disabled={!selectedCentreId || isSubmitting || isPendingInsert}>
                 <option value="">Select room</option>
                 {rooms?.filter(r => r.centreId === selectedCentreId && r.isActive)
                        .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -204,17 +221,17 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           <div className="grid grid-cols-3 gap-4">
             <div>
               <FieldLabel icon={<CalendarDays className="w-3.5 h-3.5" />}>Date</FieldLabel>
-              <input {...register('date')} type="date" className="field" />
+              <input {...register('date')} type="date" className="field" disabled={isSubmitting || isPendingInsert} />
               {errors.date && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.date.message}</p>}
             </div>
             <div>
               <FieldLabel icon={<Clock className="w-3.5 h-3.5" />}>Start Time</FieldLabel>
-              <input {...register('startTime')} type="time" className="field" />
+              <input {...register('startTime')} type="time" className="field" disabled={isSubmitting || isPendingInsert} />
               {errors.startTime && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.startTime.message}</p>}
             </div>
             <div>
               <FieldLabel icon={<Clock className="w-3.5 h-3.5" />}>End Time</FieldLabel>
-              <input {...register('endTime')} type="time" className="field" />
+              <input {...register('endTime')} type="time" className="field" disabled={isSubmitting || isPendingInsert} />
               {errors.endTime && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.endTime.message}</p>}
             </div>
           </div>
@@ -229,6 +246,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
                 </div>
                 <button
                   type="button"
+                  disabled={isSubmitting || isPendingInsert}
                   onClick={() => { setIsRecurring(!isRecurring); setRecurringError(null); }}
                   className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none`}
                   style={{ background: isRecurring ? 'var(--brand-primary)' : 'rgba(255,255,255,0.15)' }}
@@ -247,6 +265,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
                         const selected = recurringDays.includes(day);
                         return (
                           <button key={day} type="button" onClick={() => handleDayToggle(day)}
+                                  disabled={isSubmitting || isPendingInsert}
                                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                   style={selected
                                     ? { background: 'var(--brand-primary)', color: '#fff', boxShadow: '0 2px 8px rgba(99,102,241,0.4)' }
@@ -261,6 +280,7 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
                   <div>
                     <label className="label block mb-1.5">Repeat Until</label>
                     <input type="date" value={repeatUntil}
+                           disabled={isSubmitting || isPendingInsert}
                            onChange={e => { setRepeatUntil(e.target.value); setRecurringError(null); }}
                            className="field" />
                   </div>
@@ -278,14 +298,15 @@ export function SessionForm({ session, onClose, defaultDate }: SessionFormProps)
           <div>
             <label className="label block mb-1.5">Notes</label>
             <textarea {...register('notes')} rows={2} className="field resize-none"
+                      disabled={isSubmitting || isPendingInsert}
                       placeholder="Optional notes about this session…" />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="btn-primary">
-              {isSubmitting ? 'Saving…' : session ? 'Update Session' : (isRecurring ? 'Create Sessions' : 'Create Session')}
+            <button type="button" onClick={onClose} disabled={isSubmitting || isPendingInsert} className="btn-ghost">Cancel</button>
+            <button type="submit" disabled={isSubmitting || isPendingInsert} className="btn-primary">
+              {isSubmitting || isPendingInsert ? 'Saving…' : session ? 'Update Session' : (isRecurring ? 'Create Sessions' : 'Create Session')}
             </button>
           </div>
         </form>

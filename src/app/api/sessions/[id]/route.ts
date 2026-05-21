@@ -62,78 +62,104 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const existing = await prisma.classSession.findUnique({
-      where: { id },
-      include: { course: true, teacher: true, centre: true, room: true },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
+    const sessionResult = await prisma.$transaction(async (tx) => {
+      const existing = await tx.classSession.findUnique({
+        where: { id },
+        include: { course: true, teacher: true, centre: true, room: true },
+      });
+      if (!existing) {
+        return { isNotFound: true };
+      }
 
-    if (user.role === 'CENTRE_MANAGER' && user.centreId !== existing.centreId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+      if (user.role === 'CENTRE_MANAGER' && user.centreId !== existing.centreId) {
+        return { isForbidden: true };
+      }
 
-    const roomId = validation.data.roomId ?? existing.roomId;
-    const teacherId = validation.data.teacherId ?? existing.teacherId;
-    const date = validation.data.date ? new Date(validation.data.date) : existing.date;
-    const startTime = validation.data.startTime ?? existing.startTime;
-    const endTime = validation.data.endTime ?? existing.endTime;
+      const roomId = validation.data.roomId ?? existing.roomId;
+      const teacherId = validation.data.teacherId ?? existing.teacherId;
+      const date = validation.data.date ? new Date(validation.data.date) : existing.date;
+      const startTime = validation.data.startTime ?? existing.startTime;
+      const endTime = validation.data.endTime ?? existing.endTime;
 
-    const conflict = await checkConflicts(id, roomId, teacherId, date, startTime, endTime);
-    if (conflict.hasConflict) {
-      return NextResponse.json(
-        {
+      const conflict = await checkConflicts(tx, id, roomId, teacherId, date, startTime, endTime);
+      if (conflict.hasConflict) {
+        return {
+          isConflict: true,
           error: `Scheduling conflict detected: ${conflict.conflictType === 'room' ? 'Room' : 'Teacher'} is already booked`,
           conflict: conflict.conflictingSession,
           conflictType: conflict.conflictType,
+        };
+      }
+
+      const session = await tx.classSession.update({
+        where: { id },
+        data: {
+          ...validation.data,
+          date: validation.data.date ? new Date(validation.data.date) : undefined,
+          notes: validation.data.notes ?? existing.notes,
+        },
+        include: { course: true, teacher: true, centre: true, room: true },
+      });
+
+      const changes: string[] = [];
+      if (validation.data.className && validation.data.className !== existing.className) {
+        changes.push(`class name from "${existing.className}" to "${validation.data.className}"`);
+      }
+      if (validation.data.date && new Date(validation.data.date).toISOString().split('T')[0] !== existing.date.toISOString().split('T')[0]) {
+        changes.push(`date from "${existing.date.toISOString().split('T')[0]}" to "${validation.data.date}"`);
+      }
+      if (validation.data.startTime && validation.data.startTime !== existing.startTime) {
+        changes.push(`start time from "${existing.startTime}" to "${validation.data.startTime}"`);
+      }
+      if (validation.data.endTime && validation.data.endTime !== existing.endTime) {
+        changes.push(`end time from "${existing.endTime}" to "${validation.data.endTime}"`);
+      }
+      if (validation.data.teacherId && validation.data.teacherId !== existing.teacherId) {
+        changes.push(`teacher to "${session.teacher.name}"`);
+      }
+      if (validation.data.roomId && validation.data.roomId !== existing.roomId) {
+        changes.push(`room to "${session.room.name}"`);
+      }
+
+      await logAudit({
+        userId: user.id,
+        userName: user.name,
+        action: 'UPDATE',
+        entityType: 'ClassSession',
+        entityId: session.id,
+        entityName: session.className,
+        details: changes.length > 0 ? `Updated session: ${changes.join(', ')}` : 'Updated session properties with no major scheduling changes',
+      });
+
+      return { isConflict: false, data: session };
+    }, {
+      isolationLevel: 'Serializable'
+    });
+
+    if (sessionResult.isNotFound) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (sessionResult.isForbidden) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (sessionResult.isConflict) {
+      return NextResponse.json(
+        {
+          error: sessionResult.error,
+          conflict: (sessionResult as any).conflict,
+          conflictType: (sessionResult as any).conflictType,
         },
         { status: 409 }
       );
     }
 
-    const session = await prisma.classSession.update({
-      where: { id },
-      data: {
-        ...validation.data,
-        date: validation.data.date ? new Date(validation.data.date) : undefined,
-        notes: validation.data.notes ?? existing.notes,
-      },
-      include: { course: true, teacher: true, centre: true, room: true },
-    });
-
-    const changes: string[] = [];
-    if (validation.data.className && validation.data.className !== existing.className) {
-      changes.push(`class name from "${existing.className}" to "${validation.data.className}"`);
+    return NextResponse.json(sessionResult.data);
+  } catch (error: any) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2034') {
+      return NextResponse.json({ error: 'Scheduling conflict: Concurrent scheduling action detected. Please try again.' }, { status: 409 });
     }
-    if (validation.data.date && new Date(validation.data.date).toISOString().split('T')[0] !== existing.date.toISOString().split('T')[0]) {
-      changes.push(`date from "${existing.date.toISOString().split('T')[0]}" to "${validation.data.date}"`);
-    }
-    if (validation.data.startTime && validation.data.startTime !== existing.startTime) {
-      changes.push(`start time from "${existing.startTime}" to "${validation.data.startTime}"`);
-    }
-    if (validation.data.endTime && validation.data.endTime !== existing.endTime) {
-      changes.push(`end time from "${existing.endTime}" to "${validation.data.endTime}"`);
-    }
-    if (validation.data.teacherId && validation.data.teacherId !== existing.teacherId) {
-      changes.push(`teacher to "${session.teacher.name}"`);
-    }
-    if (validation.data.roomId && validation.data.roomId !== existing.roomId) {
-      changes.push(`room to "${session.room.name}"`);
-    }
-
-    await logAudit({
-      userId: user.id,
-      userName: user.name,
-      action: 'UPDATE',
-      entityType: 'ClassSession',
-      entityId: session.id,
-      entityName: session.className,
-      details: changes.length > 0 ? `Updated session: ${changes.join(', ')}` : 'Updated session properties with no major scheduling changes',
-    });
-
-    return NextResponse.json(session);
-  } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -187,6 +213,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 }
 
 async function checkConflicts(
+  tx: any,
   excludeId: string,
   roomId: string,
   teacherId: string,
@@ -194,7 +221,7 @@ async function checkConflicts(
   startTime: string,
   endTime: string
 ) {
-  const sessionsOnDate = await prisma.classSession.findMany({
+  const sessionsOnDate = await tx.classSession.findMany({
     where: {
       id: { not: excludeId },
       date,

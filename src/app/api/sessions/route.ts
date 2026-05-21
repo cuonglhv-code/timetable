@@ -90,92 +90,80 @@ export async function POST(request: NextRequest) {
 
     const { isRecurring, recurringDays, repeatUntil } = body;
 
-    if (isRecurring) {
-      // Validate recurrence fields
-      if (!Array.isArray(recurringDays) || recurringDays.length === 0) {
-        return NextResponse.json(
-          { error: 'Invalid input: recurringDays must be a non-empty array' },
-          { status: 400 }
-        );
-      }
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (typeof repeatUntil !== 'string' || !dateRegex.test(repeatUntil)) {
-        return NextResponse.json(
-          { error: 'Invalid input: repeatUntil must be in YYYY-MM-DD format' },
-          { status: 400 }
-        );
-      }
-      if (repeatUntil < date) {
-        return NextResponse.json(
-          { error: 'Invalid input: repeatUntil must be on or after start date' },
-          { status: 400 }
-        );
-      }
-
-      // Generate matching dates in timezone-safe literal local format
-      const start = parseDate(date);
-      const end = parseDate(repeatUntil);
-      const datesToCreate: Date[] = [];
-
-      const DAY_MAP: Record<string, number> = {
-        'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6,
-        'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6,
-      };
-
-      const targetDays = recurringDays.map((d: string) => {
-        const val = DAY_MAP[d.toLowerCase()];
-        return val !== undefined ? val : parseInt(d);
-      });
-
-      const current = new Date(start);
-      while (current <= end) {
-        if (targetDays.includes(current.getDay())) {
-          datesToCreate.push(new Date(current));
+    // Execute everything in a SERIALIZABLE transaction to prevent race conditions
+    const sessionResult = await prisma.$transaction(async (tx) => {
+      if (isRecurring) {
+        // Validate recurrence fields
+        if (!Array.isArray(recurringDays) || recurringDays.length === 0) {
+          throw new Error('Invalid input: recurringDays must be a non-empty array');
         }
-        current.setDate(current.getDate() + 1);
-      }
-
-      if (datesToCreate.length === 0) {
-        return NextResponse.json(
-          { error: 'No matching dates found for the selected weekdays within the date range' },
-          { status: 400 }
-        );
-      }
-
-      // Check conflicts for all dates
-      const conflicts = [];
-      for (const d of datesToCreate) {
-        const conflict = await checkConflicts(roomId, teacherId, d, startTime, endTime);
-        if (conflict.hasConflict) {
-          conflicts.push({
-            date: d.toISOString().split('T')[0],
-            type: conflict.conflictType,
-            session: conflict.conflictingSession,
-          });
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (typeof repeatUntil !== 'string' || !dateRegex.test(repeatUntil)) {
+          throw new Error('Invalid input: repeatUntil must be in YYYY-MM-DD format');
         }
-      }
+        if (repeatUntil < date) {
+          throw new Error('Invalid input: repeatUntil must be on or after start date');
+        }
 
-      if (conflicts.length > 0) {
-        const firstConflict = conflicts[0];
-        const formattedDate = firstConflict.date.split('-').reverse().join('/'); // e.g. 21/05/2026
-        const conflictTypeLabel = firstConflict.type === 'room' ? 'Room' : 'Teacher';
-        const conflictingClassName = firstConflict.session?.className || 'another class';
+        // Generate matching dates
+        const start = parseDate(date);
+        const end = parseDate(repeatUntil);
+        const datesToCreate: Date[] = [];
 
-        return NextResponse.json(
-          {
+        const DAY_MAP: Record<string, number> = {
+          'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6,
+          'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6,
+        };
+
+        const targetDays = recurringDays.map((d: string) => {
+          const val = DAY_MAP[d.toLowerCase()];
+          return val !== undefined ? val : parseInt(d);
+        });
+
+        const current = new Date(start);
+        while (current <= end) {
+          if (targetDays.includes(current.getDay())) {
+            datesToCreate.push(new Date(current));
+          }
+          current.setDate(current.getDate() + 1);
+        }
+
+        if (datesToCreate.length === 0) {
+          throw new Error('No matching dates found for the selected weekdays within the date range');
+        }
+
+        // Check conflicts for all dates inside the transaction
+        const conflicts = [];
+        for (const d of datesToCreate) {
+          const conflict = await checkConflicts(tx, roomId, teacherId, d, startTime, endTime);
+          if (conflict.hasConflict) {
+            conflicts.push({
+              date: d.toISOString().split('T')[0],
+              type: conflict.conflictType,
+              session: conflict.conflictingSession,
+            });
+          }
+        }
+
+        if (conflicts.length > 0) {
+          const firstConflict = conflicts[0];
+          const formattedDate = firstConflict.date.split('-').reverse().join('/');
+          const conflictTypeLabel = firstConflict.type === 'room' ? 'Room' : 'Teacher';
+          const conflictingClassName = firstConflict.session?.className || 'another class';
+
+          return {
+            isConflict: true,
             error: `Scheduling conflict detected on ${formattedDate}: ${conflictTypeLabel} is already booked for class "${conflictingClassName}"`,
             conflicts,
-          },
-          { status: 409 }
-        );
-      }
+          };
+        }
 
-      const seriesId = crypto.randomUUID();
+        const seriesId = crypto.randomUUID();
 
-      // Create all sessions in a transaction
-      const sessions = await prisma.$transaction(
-        datesToCreate.map((d) =>
-          prisma.classSession.create({
+        // Create sessions in transaction
+        const sessions = [];
+        for (const d of datesToCreate) {
+          const s = await tx.classSession.create({
             data: {
               className,
               courseId,
@@ -194,89 +182,108 @@ export async function POST(request: NextRequest) {
               centre: true,
               room: true,
             },
-          })
-        )
-      );
+          });
+          sessions.push(s);
+        }
 
-      const firstSession = sessions[0];
-      await logAudit({
-        userId: user.id,
-        userName: user.name,
-        action: 'CREATE',
-        entityType: 'ClassSession',
-        entityId: firstSession.id,
-        entityName: className,
-        details: `Created recurring session series of ${sessions.length} sessions starting from ${date} until ${repeatUntil} for course "${firstSession.course.name}" (Series ID: ${seriesId})`,
-      });
+        const firstSession = sessions[0];
+        await logAudit({
+          userId: user.id,
+          userName: user.name,
+          action: 'CREATE',
+          entityType: 'ClassSession',
+          entityId: firstSession.id,
+          entityName: className,
+          details: `Created recurring session series of ${sessions.length} sessions starting from ${date} until ${repeatUntil} for course "${firstSession.course.name}" (Series ID: ${seriesId})`,
+        });
 
-      // Return the first created session as the main reference response
-      return NextResponse.json(sessions[0], { status: 201 });
-    }
+        return { isConflict: false, data: sessions[0], status: 201 };
+      } else {
+        const dateObj = new Date(date);
+        const conflict = await checkConflicts(tx, roomId, teacherId, dateObj, startTime, endTime);
+        
+        if (conflict.hasConflict) {
+          return {
+            isConflict: true,
+            error: `Scheduling conflict detected: ${conflict.conflictType === 'room' ? 'Room' : 'Teacher'} is already booked`,
+            conflict: conflict.conflictingSession,
+            conflictType: conflict.conflictType,
+          };
+        }
 
-    const dateObj = new Date(date);
+        const session = await tx.classSession.create({
+          data: {
+            className,
+            courseId,
+            teacherId,
+            centreId,
+            roomId,
+            date: dateObj,
+            startTime,
+            endTime,
+            notes: notes ?? null,
+          },
+          include: {
+            course: true,
+            teacher: true,
+            centre: true,
+            room: true,
+          },
+        });
 
-    const conflict = await checkConflicts(roomId, teacherId, dateObj, startTime, endTime);
-    if (conflict.hasConflict) {
+        await logAudit({
+          userId: user.id,
+          userName: user.name,
+          action: 'CREATE',
+          entityType: 'ClassSession',
+          entityId: session.id,
+          entityName: className,
+          details: `Created single class session on ${date} ${startTime}-${endTime} for course "${session.course.name}"`,
+        });
+
+        return { isConflict: false, data: session, status: 201 };
+      }
+    }, {
+      isolationLevel: 'Serializable'
+    });
+
+    if (sessionResult.isConflict) {
       return NextResponse.json(
         {
-          error: `Scheduling conflict detected: ${conflict.conflictType === 'room' ? 'Room' : 'Teacher'} is already booked`,
-          conflict: conflict.conflictingSession,
-          conflictType: conflict.conflictType,
+          error: sessionResult.error,
+          conflicts: (sessionResult as any).conflicts,
+          conflict: (sessionResult as any).conflict,
+          conflictType: (sessionResult as any).conflictType
         },
         { status: 409 }
       );
     }
 
-    const session = await prisma.classSession.create({
-      data: {
-        className,
-        courseId,
-        teacherId,
-        centreId,
-        roomId,
-        date: dateObj,
-        startTime,
-        endTime,
-        notes: notes ?? null,
-      },
-      include: {
-        course: true,
-        teacher: true,
-        centre: true,
-        room: true,
-      },
-    });
+    return NextResponse.json(sessionResult.data, { status: sessionResult.status });
 
-    await logAudit({
-      userId: user.id,
-      userName: user.name,
-      action: 'CREATE',
-      entityType: 'ClassSession',
-      entityId: session.id,
-      entityName: className,
-      details: `Created single class session on ${date} ${startTime}-${endTime} for course "${session.course.name}"`,
-    });
-
-    return NextResponse.json(session, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2034') {
+      return NextResponse.json({ error: 'Scheduling conflict: Concurrent scheduling action detected. Please try again.' }, { status: 409 });
+    }
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to create session' }, { status: 500 });
   }
 }
 
 async function checkConflicts(
+  tx: any,
   roomId: string,
   teacherId: string,
   date: Date,
   startTime: string,
   endTime: string
 ) {
-  const sessionsOnDate = await prisma.classSession.findMany({
+  const sessionsOnDate = await tx.classSession.findMany({
     where: {
       date,
       OR: [{ roomId }, { teacherId }],
