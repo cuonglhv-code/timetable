@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useSessions } from '@/hooks/use-sessions';
 import { formatDate, cn, getSessionStatus } from '@/lib/utils';
 import { SessionForm } from './session-form';
+import { SessionDetailDrawer } from './session-detail-drawer';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const MAX_VISIBLE = 3;
@@ -19,6 +20,13 @@ export function MonthView({ filters }: MonthViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState<ClassSessionWithRelations | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const handleSessionClick = (session: ClassSessionWithRelations) => {
+    setSelectedSession(session);
+    setIsDrawerOpen(true);
+    setIsFormOpen(false);
+  };
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -93,7 +101,7 @@ export function MonthView({ filters }: MonthViewProps) {
               <div className="space-y-1">
                 {daySessions.slice(0, MAX_VISIBLE).map(session => (
                   <SessionPill key={session.id} session={session}
-                               onClick={() => { setSelectedSession(session); setIsFormOpen(true); }} />
+                               onClick={() => handleSessionClick(session)} />
                 ))}
                 {daySessions.length > MAX_VISIBLE && (
                   <div className="text-xs px-1 font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -108,6 +116,9 @@ export function MonthView({ filters }: MonthViewProps) {
 
       {isFormOpen && (
         <SessionForm session={selectedSession} onClose={() => { setIsFormOpen(false); setSelectedSession(null); }} />
+      )}
+      {isDrawerOpen && selectedSession && (
+        <SessionDetailDrawer session={selectedSession} onClose={() => { setIsDrawerOpen(false); setSelectedSession(null); }} />
       )}
     </div>
   );

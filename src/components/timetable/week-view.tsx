@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, CalendarCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarCheck, Plus } from 'lucide-react';
 import { useSessions } from '@/hooks/use-sessions';
 import { generateTimeSlots, timeToMinutes, formatDate, cn, getSessionStatus } from '@/lib/utils';
 import { SessionForm } from './session-form';
+import { SessionDetailDrawer } from './session-detail-drawer';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const START_HOUR = 7;
@@ -18,6 +19,7 @@ export function WeekView({ filters }: WeekViewProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState<ClassSessionWithRelations | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -32,12 +34,12 @@ export function WeekView({ filters }: WeekViewProps) {
     setDefaultDate(date);
     setIsFormOpen(true);
   };
-  const handleEditSession = (session: ClassSessionWithRelations) => {
+  const handleViewSession = (session: ClassSessionWithRelations) => {
     setSelectedSession(session);
-    setDefaultDate(undefined);
-    setIsFormOpen(true);
+    setIsDrawerOpen(true);
+    setIsFormOpen(false);
   };
-  const handleClose = () => { setIsFormOpen(false); setSelectedSession(null); setDefaultDate(undefined); };
+  const handleClose = () => { setIsFormOpen(false); setIsDrawerOpen(false); setSelectedSession(null); setDefaultDate(undefined); };
 
   if (isLoading) return <WeekViewSkeleton />;
 
@@ -54,10 +56,9 @@ export function WeekView({ filters }: WeekViewProps) {
           <h2 className="heading-md">
             {format(weekStart, 'MMM d')} — {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </h2>
-          <button onClick={() => setCurrentWeek(new Date())} className="btn-ghost px-3 py-1.5 text-xs"
-                  style={{ color: 'var(--brand-primary)', borderColor: 'rgba(99,102,241,0.3)' }}>
-            Today
-          </button>
+        <button onClick={() => handleAddSession(weekStart)} className="btn-primary gap-2">
+                  <Plus className="w-4 h-4" /> Add Session
+                </button>
         </div>
         <button onClick={() => setCurrentWeek(d => addDays(d, 7))} className="btn-ghost px-2.5 py-2">
           <ChevronRight className="w-4 h-4" />
@@ -113,7 +114,7 @@ export function WeekView({ filters }: WeekViewProps) {
                       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                            style={{ background: 'rgba(99,102,241,0.04)' }} />
                       {daySessions?.map(session => (
-                        <SessionBlock key={session.id} session={session} onClick={() => handleEditSession(session)} />
+                        <SessionBlock key={session.id} session={session} onClick={() => handleViewSession(session)} />
                       ))}
                     </div>
                   );
@@ -126,6 +127,9 @@ export function WeekView({ filters }: WeekViewProps) {
 
       {isFormOpen && (
         <SessionForm session={selectedSession} onClose={handleClose} defaultDate={defaultDate} />
+      )}
+      {isDrawerOpen && selectedSession && (
+        <SessionDetailDrawer session={selectedSession} onClose={handleClose} />
       )}
     </div>
   );
