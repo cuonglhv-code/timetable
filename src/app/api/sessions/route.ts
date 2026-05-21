@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { sessionSchema, filterSchema } from '@/lib/validators';
 import { isTimeOverlap, parseDate } from '@/lib/utils';
 import { requireAuth, canAccessCentre, canDeleteSession, getTeacherSessions } from '@/lib/auth/authorization';
+import crypto from 'crypto';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -168,6 +170,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const seriesId = crypto.randomUUID();
+
       // Create all sessions in a transaction
       const sessions = await prisma.$transaction(
         datesToCreate.map((d) =>
@@ -182,6 +186,7 @@ export async function POST(request: NextRequest) {
               startTime,
               endTime,
               notes: notes ?? null,
+              seriesId,
             },
             include: {
               course: true,
@@ -192,6 +197,17 @@ export async function POST(request: NextRequest) {
           })
         )
       );
+
+      const firstSession = sessions[0];
+      await logAudit({
+        userId: user.id,
+        userName: user.name,
+        action: 'CREATE',
+        entityType: 'ClassSession',
+        entityId: firstSession.id,
+        entityName: className,
+        details: `Created recurring session series of ${sessions.length} sessions starting from ${date} until ${repeatUntil} for course "${firstSession.course.name}" (Series ID: ${seriesId})`,
+      });
 
       // Return the first created session as the main reference response
       return NextResponse.json(sessions[0], { status: 201 });
@@ -229,6 +245,16 @@ export async function POST(request: NextRequest) {
         centre: true,
         room: true,
       },
+    });
+
+    await logAudit({
+      userId: user.id,
+      userName: user.name,
+      action: 'CREATE',
+      entityType: 'ClassSession',
+      entityId: session.id,
+      entityName: className,
+      details: `Created single class session on ${date} ${startTime}-${endTime} for course "${session.course.name}"`,
     });
 
     return NextResponse.json(session, { status: 201 });

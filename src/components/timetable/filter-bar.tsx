@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Download } from 'lucide-react';
 import { useCentres } from '@/hooks/use-centres';
 import { useTeachers } from '@/hooks/use-teachers';
 import { useCourses } from '@/hooks/use-courses';
@@ -79,6 +79,20 @@ export function FilterBar({ filters, onFilterChange }: FilterBarProps) {
               <X className="w-3.5 h-3.5" /> Clear
             </button>
           )}
+
+          {/* Export */}
+          <a
+            href={`/api/sessions/export?format=csv${
+              filters.centreId  ? `&centreId=${filters.centreId}`   : ''
+            }${
+              filters.teacherId ? `&teacherId=${filters.teacherId}` : ''
+            }`}
+            download="timetable.csv"
+            className="btn-ghost flex-shrink-0 gap-1.5 px-3 py-2 text-xs"
+            title="Export to CSV"
+          >
+            <Download className="w-3.5 h-3.5" /> CSV
+          </a>
         </div>
       </div>
     </div>

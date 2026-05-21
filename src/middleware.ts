@@ -9,6 +9,13 @@ export const config = {
 };
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Whitelist public pages and public API endpoints
+  if (pathname.startsWith('/public') || pathname.startsWith('/api/public')) {
+    return NextResponse.next();
+  }
+
   const session = await auth();
 
   if (!session?.user) {

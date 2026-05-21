@@ -12,9 +12,12 @@ import { ManagementPanel } from '@/components/timetable/management-panel';
 import { FilterBar } from '@/components/timetable/filter-bar';
 import { UserManagementPanel } from '@/components/timetable/user-management-panel';
 import { DashboardView } from '@/components/dashboard/dashboard-view';
+import { TeacherWorkloadView } from '@/components/dashboard/teacher-workload-view';
+import { GlobalSearch } from '@/components/ui/global-search';
+import { NotificationsMenu } from '@/components/ui/notifications-menu';
 import type { FilterOptions } from '@/types';
 
-type ViewType = 'dashboard' | 'week' | 'month' | 'manage' | 'users';
+type ViewType = 'dashboard' | 'week' | 'month' | 'teachers' | 'manage' | 'users';
 
 interface TimetableAppProps {
   user: {
@@ -54,6 +57,7 @@ export function TimetableApp({ user }: TimetableAppProps) {
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN', 'CENTRE_MANAGER', 'ACADEMIC_SUPERVISOR'] },
     { id: 'week',      label: 'Week',      icon: <Table2 className="w-4 h-4" /> },
     { id: 'month',     label: 'Month',     icon: <CalendarDays className="w-4 h-4" /> },
+    { id: 'teachers',  label: 'Teachers',  icon: <Users className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN', 'CENTRE_MANAGER', 'ACADEMIC_SUPERVISOR'] },
     { id: 'manage',    label: 'Manage',    icon: <Settings2 className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN', 'CENTRE_MANAGER', 'ACADEMIC_SUPERVISOR'] },
     { id: 'users',     label: 'Users',     icon: <Users className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN'] },
   ];
@@ -106,6 +110,12 @@ export function TimetableApp({ user }: TimetableAppProps) {
                 </button>
               ))}
             </nav>
+
+            {/* Global Search */}
+            <GlobalSearch onNavigate={setActiveView} />
+
+            {/* In-app Notifications */}
+            <NotificationsMenu />
 
             {/* User menu */}
             <div className="relative">
@@ -171,6 +181,7 @@ export function TimetableApp({ user }: TimetableAppProps) {
           {activeView === 'dashboard' && <DashboardView user={user} onNavigate={setActiveView} />}
           {activeView === 'week'      && <WeekView filters={filters} />}
           {activeView === 'month'     && <MonthView filters={filters} />}
+          {activeView === 'teachers'  && <TeacherWorkloadView />}
           {activeView === 'manage'    && <ManagementPanel />}
           {activeView === 'users'     && <UserManagementPanel />}
         </div>

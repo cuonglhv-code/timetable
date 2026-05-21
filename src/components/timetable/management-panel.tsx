@@ -1,20 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, Building2, DoorOpen, BookOpen, Users, Search, Filter, Edit2, Check, X } from 'lucide-react';
+import { Plus, Trash2, Building2, DoorOpen, BookOpen, Users, Search, Filter, Edit2, Check, X, Activity } from 'lucide-react';
 import { useCentres, useCreateCentre, useDeleteCentre } from '@/hooks/use-centres';
 import { useRooms, useCreateRoom, useDeleteRoom } from '@/hooks/use-rooms';
 import { useCourses, useCreateCourse, useDeleteCourse } from '@/hooks/use-courses';
 import { useTeachers, useCreateTeacher, useDeleteTeacher } from '@/hooks/use-teachers';
 import { useToast } from '@/components/ui/toast';
+import { AuditLogView } from '@/components/dashboard/audit-log-view';
 
-type Tab = 'centres' | 'rooms' | 'courses' | 'teachers';
+type Tab = 'centres' | 'rooms' | 'courses' | 'teachers' | 'activity';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'centres',  label: 'Centres',  icon: <Building2 className="w-4 h-4" /> },
   { id: 'rooms',    label: 'Rooms',    icon: <DoorOpen className="w-4 h-4" /> },
   { id: 'courses',  label: 'Courses',  icon: <BookOpen className="w-4 h-4" /> },
   { id: 'teachers', label: 'Teachers', icon: <Users className="w-4 h-4" /> },
+  { id: 'activity', label: 'Activity', icon: <Activity className="w-4 h-4" /> },
 ];
 
 export function ManagementPanel() {
@@ -44,6 +46,7 @@ export function ManagementPanel() {
         {activeTab === 'rooms'    && <RoomsManager />}
         {activeTab === 'courses'  && <CoursesManager />}
         {activeTab === 'teachers' && <TeachersManager />}
+        {activeTab === 'activity' && <AuditLogView />}
       </div>
     </div>
   );

@@ -73,6 +73,7 @@ model ClassSession {
   startTime String
   endTime   String
   notes     String?
+  seriesId  String?   // groups recurring sessions
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -80,6 +81,7 @@ model ClassSession {
   @@index([roomId, date])
   @@index([teacherId, date])
   @@index([centreId, date])
+  @@index([seriesId])
 }
 
 enum UserRole {
@@ -106,4 +108,19 @@ model User {
 
   @@index([email, isActive])
   @@index([role, isActive])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  userName   String
+  action     String   // CREATE | UPDATE | DELETE
+  entityType String   // ClassSession | Centre | Teacher | Course | Room | User
+  entityId   String
+  entityName String
+  details    String?  // human-readable summary of what changed
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, createdAt])
+  @@index([userId, createdAt])
 }
