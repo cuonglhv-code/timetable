@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/authorization';
+import { parseDate } from '@/lib/utils';
 
 export async function GET(req: Request) {
   try {
@@ -17,8 +18,14 @@ export async function GET(req: Request) {
     if (teacherId) where.teacherId = teacherId;
     if (startDate || endDate) {
       where.date = {};
-      if (startDate) { const [y,m,d] = startDate.split('-').map(Number); (where.date as Record<string,unknown>).gte = new Date(y, m-1, d); }
-      if (endDate)   { const [y,m,d] = endDate.split('-').map(Number);   (where.date as Record<string,unknown>).lte = new Date(y, m-1, d, 23, 59, 59); }
+      if (startDate) {
+        (where.date as Record<string, unknown>).gte = parseDate(startDate);
+      }
+      if (endDate) {
+        const end = parseDate(endDate);
+        end.setUTCHours(23, 59, 59, 999);
+        (where.date as Record<string, unknown>).lte = end;
+      }
     }
 
     const sessions = await prisma.classSession.findMany({
@@ -30,16 +37,30 @@ export async function GET(req: Request) {
     if (format === 'csv') {
       const header = 'Date,Day,Start,End,Class Name,Course,Category,Teacher,Centre,Room,Notes,Status';
       const rows = sessions.map(s => {
-        const d = new Date(s.date);
-        const day = d.toLocaleDateString('en-GB', { weekday: 'long' });
-        const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const dateStrDb = s.date instanceof Date ? s.date.toISOString().split('T')[0] : String(s.date).split('T')[0];
+        const [y, m, dNum] = dateStrDb.split('-').map(Number);
+        const utcDate = new Date(Date.UTC(y, m - 1, dNum));
+        
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayName = dayNames[utcDate.getUTCDay()];
+        const dateFormatted = `${dNum.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
+        
         const now = new Date();
-        const nowHHmm = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const nowHHmm = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const todayDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        
         let status = 'Planning';
-        if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) status = 'Finished';
-        else if (d.toDateString() === now.toDateString() && s.startTime <= nowHHmm && s.endTime > nowHHmm) status = 'On Going';
+        if (utcDate < todayDate) {
+          status = 'Finished';
+        } else if (utcDate.getTime() === todayDate.getTime()) {
+          if (s.startTime <= nowHHmm && s.endTime > nowHHmm) {
+            status = 'On Going';
+          } else if (s.endTime <= nowHHmm) {
+            status = 'Finished';
+          }
+        }
         const escape = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`;
-        return [dateStr, day, s.startTime, s.endTime, s.className, s.course.name, s.course.category,
+        return [dateFormatted, dayName, s.startTime, s.endTime, s.className, s.course.name, s.course.category,
                 s.teacher.name, s.centre.name, s.room.name, s.notes ?? '', status].map(escape).join(',');
       });
       const csv = [header, ...rows].join('\n');

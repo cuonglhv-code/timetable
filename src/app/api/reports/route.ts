@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireRole } from '@/lib/auth/authorization';
+import { requireRole } from '@/lib/auth/authorization';
+import { parseDate } from '@/lib/utils';
 
 const MAX_HOURS_WARNING = 25;
 const DAILY_OPERATING_HOURS = 12; // 8:00 to 20:00
@@ -25,29 +26,29 @@ export async function GET(request: NextRequest) {
       centreId = user.centreId; // Force filter to manager's centre
     }
 
-    // 3. Resolve date range. Default to current week (Mon-Sun)
+    // 3. Resolve date range. Default to current week (Mon-Sun) in UTC midnight
     const now = new Date();
-    let start = new Date(now);
+    let start: Date;
     if (startDateParam) {
-      start = new Date(startDateParam);
+      start = parseDate(startDateParam);
     } else {
-      // Monday of current week
-      start.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-      start.setHours(0, 0, 0, 0);
+      // Monday of current week UTC midnight
+      start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      start.setUTCDate(start.getUTCDate() - start.getUTCDay() + (start.getUTCDay() === 0 ? -6 : 1));
     }
 
-    let end = new Date(start);
+    let end: Date;
     if (endDateParam) {
-      end = new Date(endDateParam);
+      end = parseDate(endDateParam);
     } else {
-      // Sunday of current week
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
+      // Sunday of current week UTC midnight
+      end = new Date(start);
+      end.setUTCDate(start.getUTCDate() + 6);
     }
 
     // Days count for capacity calculations
     const diffTime = Math.abs(end.getTime() - start.getTime());
-    const daysCount = Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 1);
+    const daysCount = Math.max(Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1, 1);
 
     // 4. Query Teacher Workloads
     const teachers = await prisma.teacher.findMany({
@@ -170,10 +171,14 @@ export async function GET(request: NextRequest) {
     // 6. Return response based on format (JSON or CSV)
     if (format === 'csv') {
       const csvRows: string[] = [];
+      const formatDateUTC = (d: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+      };
       
       // Header Info
       csvRows.push('"Report: Teacher Workload & Workforce Analytics"');
-      csvRows.push(`"Period: ${start.toLocaleDateString('en-GB')} to ${end.toLocaleDateString('en-GB')}"`);
+      csvRows.push(`"Period: ${formatDateUTC(start)} to ${formatDateUTC(end)}"`);
       csvRows.push(`"Generated At: ${new Date().toLocaleString('en-GB')}"`);
       csvRows.push('');
       
@@ -216,6 +221,45 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 6. Query Course Category Distributions
+    const courses = await prisma.course.findMany({
+      include: {
+        sessions: {
+          where: {
+            date: { gte: start, lte: end },
+            AND: [
+              centreId ? { centreId } : {},
+              courseId ? { courseId } : {},
+            ],
+          },
+        },
+      },
+    });
+
+    const categoryMins: Record<string, number> = {};
+    const categorySessions: Record<string, number> = {};
+
+    for (const c of courses) {
+      const cat = c.category || 'Uncategorized';
+      categorySessions[cat] = (categorySessions[cat] || 0) + c.sessions.length;
+
+      let mins = 0;
+      for (const s of c.sessions) {
+        const [sh, sm] = s.startTime.split(':').map(Number);
+        const [eh, em] = s.endTime.split(':').map(Number);
+        mins += (eh * 60 + em) - (sh * 60 + sm);
+      }
+      categoryMins[cat] = (categoryMins[cat] || 0) + mins;
+    }
+
+    const courseCategoryMetrics = Object.keys(categorySessions)
+      .map(cat => ({
+        category: cat,
+        sessionCount: categorySessions[cat],
+        hoursBooked: Math.round((categoryMins[cat] / 60) * 10) / 10,
+      }))
+      .filter(m => m.sessionCount > 0);
+
     // Default response: JSON
     return NextResponse.json({
       timeRange: {
@@ -224,6 +268,7 @@ export async function GET(request: NextRequest) {
       },
       teacherMetrics,
       centreMetrics,
+      courseCategoryMetrics,
     });
 
   } catch (error) {

@@ -4,7 +4,7 @@ interface AuditLogInput {
   userId: string;
   userName: string;
   action: 'CREATE' | 'UPDATE' | 'DELETE';
-  entityType: 'ClassSession' | 'Centre' | 'Teacher' | 'Course' | 'Room' | 'User';
+  entityType: 'ClassSession' | 'Centre' | 'Teacher' | 'Course' | 'Room' | 'User' | 'Project' | 'Task' | 'ClassOpeningPlan';
   entityId: string;
   entityName: string;
   details?: string | null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sessionSchema } from '@/lib/validators';
-import { isTimeOverlap } from '@/lib/utils';
+import { isTimeOverlap, parseDate, formatDate } from '@/lib/utils';
 import { requireAuth, canAccessCentre, canDeleteSession } from '@/lib/auth/authorization';
 import { logAudit } from '@/lib/audit';
 
@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       const roomId = validation.data.roomId ?? existing.roomId;
       const teacherId = validation.data.teacherId ?? existing.teacherId;
-      const date = validation.data.date ? new Date(validation.data.date) : existing.date;
+      const date = validation.data.date ? parseDate(validation.data.date) : existing.date;
       const startTime = validation.data.startTime ?? existing.startTime;
       const endTime = validation.data.endTime ?? existing.endTime;
 
@@ -91,12 +91,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         };
       }
 
+      const testType = validation.data.testType === '' ? null : (validation.data.testType !== undefined ? validation.data.testType : existing.testType);
+      const examDownloadUrl = validation.data.examDownloadUrl === '' ? null : (validation.data.examDownloadUrl !== undefined ? validation.data.examDownloadUrl : existing.examDownloadUrl);
+      const lmsUrl = validation.data.lmsUrl === '' ? null : (validation.data.lmsUrl !== undefined ? validation.data.lmsUrl : existing.lmsUrl);
+
       const session = await tx.classSession.update({
         where: { id },
         data: {
           ...validation.data,
-          date: validation.data.date ? new Date(validation.data.date) : undefined,
+          date: validation.data.date ? parseDate(validation.data.date) : undefined,
           notes: validation.data.notes ?? existing.notes,
+          testType,
+          examDownloadUrl,
+          lmsUrl,
         },
         include: { course: true, teacher: true, centre: true, room: true },
       });
@@ -105,8 +112,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (validation.data.className && validation.data.className !== existing.className) {
         changes.push(`class name from "${existing.className}" to "${validation.data.className}"`);
       }
-      if (validation.data.date && new Date(validation.data.date).toISOString().split('T')[0] !== existing.date.toISOString().split('T')[0]) {
-        changes.push(`date from "${existing.date.toISOString().split('T')[0]}" to "${validation.data.date}"`);
+      if (validation.data.date && validation.data.date !== formatDate(existing.date)) {
+        changes.push(`date from "${formatDate(existing.date)}" to "${validation.data.date}"`);
       }
       if (validation.data.startTime && validation.data.startTime !== existing.startTime) {
         changes.push(`start time from "${existing.startTime}" to "${validation.data.startTime}"`);

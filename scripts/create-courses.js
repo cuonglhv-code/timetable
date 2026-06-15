@@ -42,29 +42,36 @@ function createPrismaClient() {
 
 // Curated beautiful color palette for courses
 const coursesToCreate = [
-  // 4Skills (Amber)
-  { name: 'Active Communicative 4Skills', category: '4Skills', colorHex: '#f59e0b' },
+  // IELTS
+  { name: 'IELTS Foundation 1', category: 'IELTS', totalSessions: 25, colorHex: '#60a5fa' },
+  { name: 'IELTS Foundation 2', category: 'IELTS', totalSessions: 20, colorHex: '#3b82f6' },
+  { name: 'Booster 1', category: 'IELTS', totalSessions: 28, colorHex: '#2563eb' },
+  { name: 'Booster 2', category: 'IELTS', totalSessions: 28, colorHex: '#1d4ed8' },
+  { name: 'Achiever 1', category: 'IELTS', totalSessions: 28, colorHex: '#818cf8' },
+  { name: 'Achiever 2', category: 'IELTS', totalSessions: 28, colorHex: '#6366f1' },
+  { name: 'Achiever 3', category: 'IELTS', totalSessions: 28, colorHex: '#4f46e5' },
+  { name: 'Luyện đề Intensive', category: 'IELTS', totalSessions: 28, colorHex: '#475569' },
 
-  // IELTS Courses (Shades of blue, indigo, and purple for a premium tiered look)
-  { name: 'IELTS-Foundation 1', category: 'IELTS', colorHex: '#60a5fa' },
-  { name: 'IELTS-Foundation 2', category: 'IELTS', colorHex: '#3b82f6' },
-  { name: 'IELTS-Booster 1', category: 'IELTS', colorHex: '#2563eb' },
-  { name: 'IELTS-Booster 2', category: 'IELTS', colorHex: '#1d4ed8' },
-  { name: 'IELTS-Achiever 1', category: 'IELTS', colorHex: '#818cf8' },
-  { name: 'IELTS-Achiever 2', category: 'IELTS', colorHex: '#6366f1' },
-  { name: 'IELTS-Achiever 3', category: 'IELTS', colorHex: '#4f46e5' },
-  { name: 'IELTS-Expert (1-1)', category: 'IELTS', colorHex: '#a855f7' },
-  { name: 'IELTS-Custom', category: 'IELTS', colorHex: '#475569' },
+  // TOEIC
+  { name: 'TOEIC Foundation', category: 'TOEIC', totalSessions: 30, colorHex: '#10b981' },
+  { name: 'TOEIC Starter', category: 'TOEIC', totalSessions: 24, colorHex: '#059669' },
+  { name: 'TOEIC Builder', category: 'TOEIC', totalSessions: 26, colorHex: '#047857' },
+  { name: 'TOEIC Focus', category: 'TOEIC', totalSessions: 26, colorHex: '#065f46' },
+  { name: 'TOEIC L&R Intensive', category: 'TOEIC', totalSessions: 6, colorHex: '#0f766e' },
+  { name: 'TOEIC SW Achiever', category: 'TOEIC', totalSessions: 24, colorHex: '#14b8a6' },
+  { name: 'TOEIC SW Mastery', category: 'TOEIC', totalSessions: 6, colorHex: '#0d9488' },
 
-  // TOEIC Courses (Shades of emerald/teal/green for elegant coordination)
-  { name: 'TOEIC-Foundation', category: 'TOEIC', colorHex: '#10b981' },
-  { name: 'TOEIC-Starter', category: 'TOEIC', colorHex: '#059669' },
-  { name: 'TOEIC-Builder', category: 'TOEIC', colorHex: '#047857' },
-  { name: 'TOEIC-Focus', category: 'TOEIC', colorHex: '#065f46' },
-  { name: 'TOEIC-Intensive', category: 'TOEIC', colorHex: '#0f766e' },
-  { name: 'TOEIC-SW Achiever', category: 'TOEIC', colorHex: '#14b8a6' },
-  { name: 'TOEIC-SW Mastery', category: 'TOEIC', colorHex: '#0d9488' },
-  { name: 'TOEIC-Custom', category: 'TOEIC', colorHex: '#64748b' }
+  // 4Skills
+  { name: '4Skills Pre-S', category: '4Skills', totalSessions: 28, colorHex: '#f59e0b' },
+  { name: '4Skills Starter (S)', category: '4Skills', totalSessions: 28, colorHex: '#d97706' },
+  { name: '4Skills Total Comprehension (TC)', category: '4Skills', totalSessions: 28, colorHex: '#b45309' },
+  { name: '4Skills Master of TC (MTC)', category: '4Skills', totalSessions: 28, colorHex: '#78350f' },
+
+  // Grammar
+  { name: 'Grammar Foundation', category: 'Grammar', totalSessions: 40, colorHex: '#ec4899' },
+  { name: 'Grammar Builder', category: 'Grammar', totalSessions: 40, colorHex: '#db2777' },
+  { name: 'Grammar Exam Ready 1', category: 'Grammar', totalSessions: 40, colorHex: '#be185d' },
+  { name: 'Grammar Exam Ready 2', category: 'Grammar', totalSessions: 40, colorHex: '#9d174d' }
 ];
 
 async function main() {

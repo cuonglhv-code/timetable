@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model Centre {
@@ -18,6 +18,8 @@ model Centre {
   rooms     Room[]
   sessions  ClassSession[]
   managers  User[]   @relation("CentreManager")
+  projects  Project[]
+  openingPlans ClassOpeningPlan[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -30,17 +32,20 @@ model Room {
   capacity  Int?
   isActive  Boolean  @default(true)
   sessions  ClassSession[]
+  openingPlans ClassOpeningPlan[]
   
   @@unique([centreId, name])
   @@index([centreId, isActive])
 }
 
 model Course {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  category  String
-  colorHex  String?
-  sessions  ClassSession[]
+  id            String   @id @default(cuid())
+  name          String   @unique
+  category      String
+  colorHex      String?
+  totalSessions Int?
+  sessions      ClassSession[]
+  openingPlans  ClassOpeningPlan[]
 }
 
 model Teacher {
@@ -51,6 +56,7 @@ model Teacher {
   isActive  Boolean  @default(true)
   sessions  ClassSession[]
   user      User?
+  openingPlans ClassOpeningPlan[]
 }
 
 model ClassSession {
@@ -75,6 +81,11 @@ model ClassSession {
   notes     String?
   seriesId  String?   // groups recurring sessions
   
+  sessionNumber   Int?      // e.g., 3 (meaning "Session 3 of N")
+  testType        String?   // MINI_TEST | MID_TEST | FINAL_TEST | null
+  examDownloadUrl String?   // Link to printable exam papers
+  lmsUrl          String?   // Link to online student LMS tests
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -92,19 +103,21 @@ enum UserRole {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  password    String
-  name        String
-  role        UserRole @default(TEACHER)
-  centreId    String?
-  centre      Centre?  @relation("CentreManager", fields: [centreId], references: [id], onDelete: SetNull)
-  teacherId   String?  @unique
-  teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  isActive    Boolean  @default(true)
-  lastLogin   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String
+  role            UserRole @default(TEACHER)
+  centreId        String?
+  centre          Centre?  @relation("CentreManager", fields: [centreId], references: [id], onDelete: SetNull)
+  teacherId       String?  @unique
+  teacher         Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  isActive        Boolean  @default(true)
+  lastLogin       DateTime?
+  createdProjects Project[] @relation("ProjectCreator")
+  assignedTasks   Task[]   @relation("TaskAssignee")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([email, isActive])
   @@index([role, isActive])
@@ -115,7 +128,7 @@ model AuditLog {
   userId     String
   userName   String
   action     String   // CREATE | UPDATE | DELETE
-  entityType String   // ClassSession | Centre | Teacher | Course | Room | User
+  entityType String   // ClassSession | Centre | Teacher | Course | Room | User | Project | Task
   entityId   String
   entityName String
   details    String?  // human-readable summary of what changed
@@ -123,4 +136,148 @@ model AuditLog {
 
   @@index([entityType, createdAt])
   @@index([userId, createdAt])
+}
+
+enum ProjectViewType {
+  LIST
+  BOARD
+  CALENDAR
+  TIMELINE
+}
+
+enum ProjectType {
+  KANBAN
+  REQUESTS
+}
+
+enum TaskPriority {
+  BLOCKER
+  HIGH
+  MEDIUM
+  LOW
+  TRIVIAL
+}
+
+enum TaskEffort {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Project {
+  id            String          @id @default(cuid())
+  name          String
+  description   String?
+  defaultView   ProjectViewType @default(LIST)
+  type          ProjectType     @default(KANBAN)
+  ticketPrefix  String?
+  ticketCounter Int             @default(0)
+  status        String?
+  isFavorited   Boolean         @default(false)
+  
+  centreId      String?
+  centre        Centre?         @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  
+  creatorId     String
+  creator       User            @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  
+  sections      Section[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([centreId])
+  @@index([creatorId])
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  order       Int
+  tasks       Task[]
+  
+  statusColor String?  // hex color for REQUESTS status pill
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model Task {
+  id            String      @id @default(cuid())
+  sectionId     String
+  section       Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  name          String
+  description   String?
+  completed     Boolean     @default(false)
+  order         Int
+  
+  assigneeId    String?
+  assignee      User?       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  
+  dueDateStart  DateTime?
+  dueDateEnd    DateTime?
+  
+  effort        TaskEffort?
+  category      String?
+  
+  ticketId      String?
+  storyPoints   Int?
+  priority      TaskPriority?  @default(MEDIUM)
+  completedAt   DateTime?
+  
+  blockedBy     TaskBlock[]  @relation("BlockedByTasks")
+  blocking      TaskBlock[]  @relation("BlockingTasks")
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([sectionId])
+  @@index([assigneeId])
+}
+
+model TaskBlock {
+  blockedTaskId  String
+  blockingTaskId String
+  blockedTask    Task @relation("BlockedByTasks",  fields: [blockedTaskId],  references: [id], onDelete: Cascade)
+  blockingTask   Task @relation("BlockingTasks",   fields: [blockingTaskId], references: [id], onDelete: Cascade)
+  @@id([blockedTaskId, blockingTaskId])
+}
+
+model ClassOpeningPlan {
+  id              String      @id @default(cuid())
+  className       String
+  
+  courseId        String
+  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  centreId        String
+  centre          Centre      @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  
+  teacherId       String?
+  teacher         Teacher?    @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  
+  roomId          String?
+  room            Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  
+  date            DateTime?
+  startTime       String?
+  endTime         String?
+  
+  minStudents     Int         @default(15)
+  currentStudents Int         @default(0)
+  
+  status          String      @default("PLANNING") // PLANNING | SUBMITTED
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([centreId])
+  @@index([courseId])
+  @@index([teacherId])
+  @@index([roomId])
 }

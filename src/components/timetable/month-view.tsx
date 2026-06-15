@@ -1,26 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useSessions } from '@/hooks/use-sessions';
-import { formatDate, cn, getSessionStatus } from '@/lib/utils';
+import { formatDate, cn, getSessionStatus, getUTCDateString } from '@/lib/utils';
 import { SessionForm } from './session-form';
 import { SessionDetailDrawer } from './session-detail-drawer';
 import type { ClassSessionWithRelations, FilterOptions } from '@/types';
 
 const MAX_VISIBLE = 3;
 
-interface MonthViewProps { filters?: FilterOptions; }
+interface MonthViewProps {
+  filters?: FilterOptions;
+  user: {
+    role: string;
+  };
+}
 
-export function MonthView({ filters }: MonthViewProps) {
+export function MonthView({ filters, user }: MonthViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState<ClassSessionWithRelations | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const isWriteUser = user.role !== 'TEACHER';
+
+  // Listen for the global + Add Session click from the toolbar
+  useEffect(() => {
+    const handleGlobalAdd = () => {
+      if (isWriteUser) {
+        setSelectedSession(null);
+        setIsFormOpen(true);
+        setIsDrawerOpen(false);
+      }
+    };
+    window.addEventListener('open-session-form', handleGlobalAdd);
+    return () => window.removeEventListener('open-session-form', handleGlobalAdd);
+  }, [isWriteUser]);
 
   const handleSessionClick = (session: ClassSessionWithRelations) => {
     setSelectedSession(session);
@@ -74,7 +94,8 @@ export function MonthView({ filters }: MonthViewProps) {
       {/* Day cells */}
       <div className="grid grid-cols-7">
         {days.map(day => {
-          const daySessions = sessions?.filter(s => isSameDay(new Date(s.date), day)) ?? [];
+          const dayStr = format(day, 'yyyy-MM-dd');
+          const daySessions = sessions?.filter(s => getUTCDateString(s.date) === dayStr) ?? [];
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isToday = isSameDay(day, new Date());
 
@@ -86,7 +107,7 @@ export function MonthView({ filters }: MonthViewProps) {
                    background: isToday
                      ? 'rgba(99,102,241,0.07)'
                      : !isCurrentMonth
-                       ? 'rgba(0,0,0,0.15)'
+                       ? 'var(--bg-non-current-month)'
                        : 'transparent',
                  }}>
               <div className={cn(
@@ -124,22 +145,23 @@ export function MonthView({ filters }: MonthViewProps) {
   );
 }
 
+/* Redesigned Session Pill adopting compact card anatomy */
 function SessionPill({ session, onClick }: { session: ClassSessionWithRelations; onClick: () => void }) {
-  const status = getSessionStatus(session.date, session.startTime, session.endTime);
-  const styles: Record<string, { bg: string; border: string; text: string }> = {
-    PLANNING: { bg: 'var(--status-planning-bg)',  border: 'var(--status-planning-border)',  text: 'var(--status-planning-text)' },
-    ON_GOING: { bg: 'var(--status-ongoing-bg)',   border: 'var(--status-ongoing-border)',   text: 'var(--status-ongoing-text)' },
-    FINISHED: { bg: 'var(--status-finished-bg)',  border: 'var(--status-finished-border)',  text: 'var(--status-finished-text)' },
-  };
-  const s = styles[status] ?? styles.PLANNING;
-
+  const courseColor = session.course.colorHex ?? '#6366f1';
   return (
     <button onClick={onClick}
-            className="w-full text-left rounded px-1.5 py-0.5 text-xs truncate border-l-2 transition-all duration-150 hover:brightness-125"
-            style={{ background: s.bg, borderLeftColor: s.border, color: s.text }}>
+            className="w-full text-left rounded-md px-1.5 py-1 text-xs truncate border transition-all duration-150 hover:brightness-105"
+            style={{
+              background: 'var(--bg-elevated)',
+              borderColor: 'var(--border-subtle)',
+              borderLeft: `3px solid ${courseColor}`,
+              color: 'var(--text-primary)',
+              boxShadow: 'none',
+            }}>
       <div className="font-semibold truncate leading-tight">{session.className}</div>
-      <div className="opacity-75 truncate" style={{ fontSize: '0.65rem' }}>
-        {session.startTime} · {session.room.name}
+      <div className="flex items-center justify-between text-[9px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+        <span className="truncate">{session.room.name}</span>
+        <span className="font-mono flex-shrink-0">{session.startTime}</span>
       </div>
     </button>
   );
@@ -150,13 +172,11 @@ function MonthViewSkeleton() {
     <div className="card overflow-hidden" style={{ background: 'var(--bg-surface)' }}>
       <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className="skeleton w-8 h-8 rounded-lg" />
-        <div className="skeleton w-36 h-5 rounded" />
+        <div className="skeleton w-48 h-5 rounded" />
         <div className="skeleton w-8 h-8 rounded-lg" />
       </div>
-      <div className="grid grid-cols-7 p-4 gap-2">
-        {Array.from({ length: 35 }).map((_, i) => (
-          <div key={i} className="skeleton h-24 rounded-lg" />
-        ))}
+      <div className="p-4 grid grid-cols-7 gap-2">
+        {Array.from({ length: 35 }).map((_, i) => <div key={i} className="skeleton h-24 rounded-lg" />)}
       </div>
     </div>
   );

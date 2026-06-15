@@ -25,6 +25,7 @@ export function useCreateCourse() {
       name: string;
       category: string;
       colorHex?: string | null;
+      totalSessions?: number | null;
     }) => {
       const res = await fetch('/api/courses', {
         method: 'POST',
@@ -52,7 +53,12 @@ export function useUpdateCourse() {
       data,
     }: {
       id: string;
-      data: { name?: string; category?: string; colorHex?: string | null };
+      data: {
+        name?: string;
+        category?: string;
+        colorHex?: string | null;
+        totalSessions?: number | null;
+      };
     }) => {
       const res = await fetch(`/api/courses/${id}`, {
         method: 'PATCH',
@@ -80,6 +86,33 @@ export function useDeleteCourse() {
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || 'Failed to delete course');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+  });
+}
+
+export function useCreateBulkCourses() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      category: string;
+      colorHex?: string | null;
+      totalSessions?: number | null;
+    }[]) => {
+      const res = await fetch('/api/courses/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to import courses');
       }
       return res.json();
     },

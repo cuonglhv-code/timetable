@@ -79,18 +79,18 @@ export function generateTimeSlots(startHour = 8, endHour = 21) {
  * Format a date to YYYY-MM-DD string.
  */
 export function formatDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
 /**
- * Parse a YYYY-MM-DD string to a Date object (local timezone).
+ * Parse a YYYY-MM-DD string to a Date object (UTC timezone midnight).
  */
 export function parseDate(dateString: string): Date {
   const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 /**
@@ -103,25 +103,33 @@ export function getSessionStatus(
 ): 'PLANNING' | 'ON_GOING' | 'FINISHED' {
   const now = new Date();
   
-  // Extract YYYY-MM-DD literally to bypass timezone shifting
-  let dateStr = '';
+  let year: number;
+  let month: number; // 0-indexed
+  let day: number;
+  
   if (typeof dateVal === 'string') {
-    dateStr = dateVal.split('T')[0];
+    const [y, m, d] = dateVal.split('T')[0].split('-').map(Number);
+    year = y;
+    month = m - 1;
+    day = d;
   } else if (dateVal instanceof Date) {
-    dateStr = dateVal.toISOString().split('T')[0];
+    year = dateVal.getUTCFullYear();
+    month = dateVal.getUTCMonth();
+    day = dateVal.getUTCDate();
   } else {
-    dateStr = new Date(dateVal).toISOString().split('T')[0];
+    const dObj = new Date(dateVal);
+    year = dObj.getUTCFullYear();
+    month = dObj.getUTCMonth();
+    day = dObj.getUTCDate();
   }
   
-  const [year, month, day] = dateStr.split('-').map(Number);
-  
   // Create start Date object
-  const sessionStart = new Date(year, month - 1, day);
+  const sessionStart = new Date(year, month, day);
   const [startHour, startMin] = startTime.split(':').map(Number);
   sessionStart.setHours(startHour, startMin, 0, 0);
 
   // Create end Date object
-  const sessionEnd = new Date(year, month - 1, day);
+  const sessionEnd = new Date(year, month, day);
   const [endHour, endMin] = endTime.split(':').map(Number);
   sessionEnd.setHours(endHour, endMin, 0, 0);
   
@@ -133,4 +141,34 @@ export function getSessionStatus(
     return 'ON_GOING';
   }
 }
+
+/**
+ * Safely extract the "yyyy-MM-dd" date portion from a Date object or UTC ISO string without timezone shifts.
+ */
+export function getUTCDateString(date: Date | string): string {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    return date.split('T')[0];
+  }
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Format a Date or date string to a short string "D MMM" (e.g. "13 Jun") in UTC terms.
+ */
+export function formatUTCShort(dateVal: string | Date): string {
+  if (!dateVal) return '';
+  const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : formatDate(dateVal);
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return '';
+  const [, mStr, dStr] = parts;
+  const monthIndex = parseInt(mStr, 10) - 1;
+  const day = parseInt(dStr, 10);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${day} ${months[monthIndex] || ''}`;
+}
+
 

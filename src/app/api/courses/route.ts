@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, category, colorHex } = validation.data;
+    const { name, category, colorHex, totalSessions } = validation.data;
 
     const existing = await prisma.course.findUnique({ where: { name } });
     if (existing) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const course = await prisma.course.create({
-      data: { name, category, colorHex: colorHex ?? null },
+      data: { name, category, colorHex: colorHex ?? null, totalSessions: totalSessions ?? null },
     });
 
     return NextResponse.json(course, { status: 201 });

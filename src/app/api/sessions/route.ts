@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
     }
     if (startDate || endDate) {
       where.date = {};
-      if (startDate) (where.date as Record<string, unknown>).gte = new Date(startDate);
-      if (endDate) (where.date as Record<string, unknown>).lte = new Date(endDate);
+      if (startDate) (where.date as Record<string, unknown>).gte = parseDate(startDate);
+      if (endDate) (where.date as Record<string, unknown>).lte = parseDate(endDate);
     }
 
     const sessions = await prisma.classSession.findMany({
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { className, courseId, teacherId, centreId, roomId, date, startTime, endTime, notes } =
+    const { className, courseId, teacherId, centreId, roomId, date, startTime, endTime, notes, sessionNumber, testType, examDownloadUrl, lmsUrl } =
       validation.data;
 
     if (user.role === 'CENTRE_MANAGER' && user.centreId !== centreId) {
@@ -175,6 +175,10 @@ export async function POST(request: NextRequest) {
               endTime,
               notes: notes ?? null,
               seriesId,
+              sessionNumber: sessionNumber ?? null,
+              testType: testType || null,
+              examDownloadUrl: examDownloadUrl || null,
+              lmsUrl: lmsUrl || null,
             },
             include: {
               course: true,
@@ -199,7 +203,7 @@ export async function POST(request: NextRequest) {
 
         return { isConflict: false, data: sessions[0], status: 201 };
       } else {
-        const dateObj = new Date(date);
+        const dateObj = parseDate(date);
         const conflict = await checkConflicts(tx, roomId, teacherId, dateObj, startTime, endTime);
         
         if (conflict.hasConflict) {
@@ -222,6 +226,10 @@ export async function POST(request: NextRequest) {
             startTime,
             endTime,
             notes: notes ?? null,
+            sessionNumber: sessionNumber ?? null,
+            testType: testType || null,
+            examDownloadUrl: examDownloadUrl || null,
+            lmsUrl: lmsUrl || null,
           },
           include: {
             course: true,

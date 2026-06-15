@@ -5,7 +5,8 @@ import {
   Calendar, Users, Zap, TrendingUp, ArrowRight, Clock,
   AlertTriangle, Activity, Building2, BookOpen, CheckCircle,
 } from 'lucide-react';
-import { getSessionStatus } from '@/lib/utils';
+import { getSessionStatus, formatUTCShort } from '@/lib/utils';
+import { useLanguage } from '@/providers/language-provider';
 import type { ClassSessionWithRelations } from '@/types';
 
 interface DashboardData {
@@ -20,8 +21,9 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ user, onNavigate }: DashboardViewProps) {
+  const { tr, lang } = useLanguage();
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? tr('dash_greeting_morning') : hour < 17 ? tr('dash_greeting_afternoon') : tr('dash_greeting_evening');
   const firstName = user.name.split(' ')[0];
 
   const { data, isLoading } = useQuery<DashboardData>({
@@ -41,30 +43,30 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
   const kpis = [
     {
       icon: <Calendar className="w-5 h-5" />,
-      label: 'Sessions This Week',
+      label: tr('dash_kpi_week'),
       value: data?.kpi.weekSessions ?? '—',
-      color: '#6366f1',
+      color: '#e8a020',
       onClick: () => onNavigate('week'),
     },
     {
       icon: <Users className="w-5 h-5" />,
-      label: 'Active Teachers',
+      label: tr('dash_kpi_teachers'),
       value: data?.kpi.activeTeachers ?? '—',
-      color: '#34d399',
+      color: '#2dd4bf',
       onClick: () => onNavigate('manage'),
     },
     {
       icon: <Zap className="w-5 h-5" />,
-      label: 'On Going Now',
+      label: tr('dash_kpi_ongoing'),
       value: data?.kpi.onGoing ?? '—',
-      color: '#fbbf24',
+      color: '#f5c842',
       pulse: (data?.kpi.onGoing ?? 0) > 0,
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,
-      label: 'Upcoming (24h)',
+      label: tr('dash_kpi_upcoming'),
       value: data?.kpi.upcoming24h ?? '—',
-      color: '#a78bfa',
+      color: '#86efac',
       onClick: () => onNavigate('week'),
     },
   ];
@@ -74,9 +76,11 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
 
       {/* Welcome */}
       <div className="animate-fade-in">
-        <h2 className="heading-xl mb-1">{greeting}, {firstName} 👋</h2>
-        <p className="muted">
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+          {greeting}, <span style={{ color: 'var(--text-accent)' }}>{firstName}</span> 👋
+        </h2>
+        <p className="muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em', marginTop: '0.4rem' }}>
+          {new Date().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
@@ -87,7 +91,7 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
           <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
           <div className="flex-1">
             <span className="text-sm font-semibold" style={{ color: '#34d399' }}>
-              {onGoingSessions.length} session{onGoingSessions.length > 1 ? 's' : ''} on going right now
+              {onGoingSessions.length} {lang === 'vi' ? 'buổi học đang diễn ra' : `session${onGoingSessions.length > 1 ? 's' : ''} on going right now`}
             </span>
             <span className="text-sm ml-2" style={{ color: 'var(--text-secondary)' }}>
               {onGoingSessions.map(s => s.className).join(' · ')}
@@ -95,7 +99,7 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
           </div>
           <button onClick={() => onNavigate('week')} className="btn-ghost py-1.5 px-3 text-xs"
                   style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.3)' }}>
-            View <ArrowRight className="w-3 h-3" />
+            {tr('dash_view_week')} <ArrowRight className="w-3 h-3" />
           </button>
         </div>
       )}
@@ -132,10 +136,10 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
                style={{ borderColor: 'var(--border-subtle)' }}>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4" style={{ color: 'var(--brand-primary)' }} />
-              <h3 className="heading-md">Today's Schedule</h3>
+              <h3 className="heading-md">{tr('dash_today')}</h3>
             </div>
             <button onClick={() => onNavigate('week')} className="btn-ghost py-1.5 px-3 text-xs">
-              Full Week <ArrowRight className="w-3 h-3" />
+              {tr('week_next')} <ArrowRight className="w-3 h-3" />
             </button>
           </div>
           <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
@@ -145,7 +149,7 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
                 ? (
                   <div className="text-center py-10">
                     <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-                    <p className="muted text-sm">No sessions scheduled for today</p>
+                    <p className="muted text-sm">{tr('dash_no_sessions')}</p>
                   </div>
                 )
                 : data?.todaySessions.map(session => {
@@ -184,7 +188,7 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
           <div className="flex items-center gap-2 px-5 py-4 border-b"
                style={{ borderColor: 'var(--border-subtle)' }}>
             <Activity className="w-4 h-4" style={{ color: 'var(--brand-primary)' }} />
-            <h3 className="heading-md">Recently Added</h3>
+            <h3 className="heading-md">{tr('dash_recent')}</h3>
           </div>
           <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
             {isLoading
@@ -203,7 +207,7 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{session.className}</div>
                       <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {new Date(session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        {formatUTCShort(session.date)}
                         {' · '}{session.startTime} · {session.centre.name.replace('Jaxtina-', '')}
                       </div>
                     </div>
@@ -216,14 +220,14 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
 
       {/* Quick Actions */}
       <div>
-        <h3 className="heading-md mb-4">Quick Actions</h3>
+        <h3 className="heading-md mb-4">{tr('dash_quick_actions')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 stagger">
           {[
-            { label: 'Week View',        desc: 'View and manage the weekly grid',          icon: <Calendar className="w-5 h-5" />,  view: 'week' as const,   color: '#6366f1' },
-            { label: 'Month Overview',   desc: 'Monthly calendar view of all sessions',    icon: <TrendingUp className="w-5 h-5" />, view: 'month' as const,  color: '#34d399' },
-            { label: 'Manage Resources', desc: 'Centres, rooms, courses & teachers',       icon: <Building2 className="w-5 h-5" />, view: 'manage' as const, color: '#f59e0b' },
+            { labelKey: 'nav_week'   as const, desc: lang === 'vi' ? 'Xem và quản lý lịch học trong tuần' : 'View and manage the weekly grid',       icon: <Calendar className="w-5 h-5" />,   view: 'week'   as const, color: '#e8a020' },
+            { labelKey: 'nav_month'  as const, desc: lang === 'vi' ? 'Xem lịch tổng quan theo tháng'        : 'Monthly calendar view of all sessions',  icon: <TrendingUp className="w-5 h-5" />, view: 'month'  as const, color: '#2dd4bf' },
+            { labelKey: 'nav_manage' as const, desc: lang === 'vi' ? 'Cơ sở, phòng học, khoá học & giáo viên' : 'Centres, rooms, courses & teachers',    icon: <Building2 className="w-5 h-5" />,  view: 'manage' as const, color: '#f5c842' },
           ].map(a => (
-            <button key={a.label} onClick={() => onNavigate(a.view)}
+            <button key={a.labelKey} onClick={() => onNavigate(a.view)}
                     className="card p-5 text-left group transition-all duration-200 hover:-translate-y-0.5 animate-fade-in"
                     style={{ background: 'var(--bg-surface)' }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = `${a.color}44`)}
@@ -232,11 +236,11 @@ export function DashboardView({ user, onNavigate }: DashboardViewProps) {
                    style={{ background: `${a.color}18`, color: a.color }}>
                 {a.icon}
               </div>
-              <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{a.label}</div>
+              <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{tr(a.labelKey)}</div>
               <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>{a.desc}</div>
               <div className="flex items-center gap-1 text-xs font-medium group-hover:gap-2 transition-all"
                    style={{ color: a.color }}>
-                Open <ArrowRight className="w-3.5 h-3.5" />
+                {lang === 'vi' ? 'Mở' : 'Open'} <ArrowRight className="w-3.5 h-3.5" />
               </div>
             </button>
           ))}

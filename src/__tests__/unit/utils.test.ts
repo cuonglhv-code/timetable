@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isTimeOverlap, timeToMinutes, minutesToTime, getSessionStatus } from '@/lib/utils';
+import { isTimeOverlap, timeToMinutes, minutesToTime, getSessionStatus, parseDate, formatDate, getUTCDateString, formatUTCShort } from '@/lib/utils';
 
 describe('isTimeOverlap', () => {
   it('should return true for overlapping time ranges', () => {
@@ -59,3 +59,35 @@ describe('getSessionStatus', () => {
     expect(status).toBe('FINISHED');
   });
 });
+
+describe('parseDate and formatDate UTC consistency', () => {
+  it('should parse date string as UTC midnight Date', () => {
+    const date = parseDate('2026-06-12');
+    expect(date.getUTCFullYear()).toBe(2026);
+    expect(date.getUTCMonth()).toBe(5); // June is 5
+    expect(date.getUTCDate()).toBe(12);
+    expect(date.getUTCHours()).toBe(0);
+    expect(date.getUTCMinutes()).toBe(0);
+  });
+
+  it('should format Date using UTC components', () => {
+    const date = new Date(Date.UTC(2026, 5, 12));
+    expect(formatDate(date)).toBe('2026-06-12');
+  });
+});
+
+describe('getUTCDateString and formatUTCShort timezone safety', () => {
+  it('should extract UTC date string correctly without timezone shift', () => {
+    const dateStr = '2026-06-13T00:00:00.000Z';
+    expect(getUTCDateString(dateStr)).toBe('2026-06-13');
+
+    const dateObj = new Date(Date.UTC(2026, 5, 13));
+    expect(getUTCDateString(dateObj)).toBe('2026-06-13');
+  });
+
+  it('should format UTC short string correctly', () => {
+    expect(formatUTCShort('2026-06-13T00:00:00.000Z')).toBe('13 Jun');
+    expect(formatUTCShort('2026-12-05')).toBe('5 Dec');
+  });
+});
+

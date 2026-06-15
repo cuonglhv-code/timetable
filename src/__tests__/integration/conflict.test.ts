@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/sessions/route';
+import { GET as checkConflictGET } from '@/app/api/sessions/check-conflict/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/authorization';
 import { NextRequest } from 'next/server';
@@ -127,5 +128,51 @@ describe('Sessions API POST Concurrency and Conflict Handling', () => {
 
     const resData = await res.json();
     expect(resData.error).toContain('Concurrent scheduling action detected');
+  });
+});
+
+describe('check-conflict GET Endpoint', () => {
+  it('should return no conflicts if required parameters are missing', async () => {
+    (requireAuth as any).mockResolvedValue({ id: 'user-1', role: 'CENTRE_MANAGER' });
+
+    const req = new NextRequest('http://localhost/api/sessions/check-conflict?date=2026-05-21');
+    const res = await checkConflictGET(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.hasConflict).toBe(false);
+  });
+
+  it('should properly check room conflicts and not match all records when teacherId is omitted', async () => {
+    (requireAuth as any).mockResolvedValue({ id: 'user-1', role: 'CENTRE_MANAGER' });
+
+    const mockFindMany = vi.fn().mockResolvedValue([
+      {
+        id: 'session-1',
+        roomId: 'room-1',
+        teacherId: 'teacher-1',
+        date: new Date(Date.UTC(2026, 4, 21)),
+        startTime: '08:00',
+        endTime: '10:00',
+      }
+    ]);
+    (prisma.classSession.findMany as any).mockImplementation(mockFindMany);
+
+    const req = new NextRequest('http://localhost/api/sessions/check-conflict?date=2026-05-21&startTime=09:00&endTime=10:30&roomId=room-1');
+    const res = await checkConflictGET(req);
+    
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    
+    expect(data.hasConflict).toBe(true);
+    expect(data.roomConflicts.length).toBe(1);
+
+    expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        date: new Date(Date.UTC(2026, 4, 21)),
+        startTime: { lt: '10:30' },
+        endTime: { gt: '09:00' },
+        OR: [{ roomId: 'room-1' }],
+      })
+    }));
   });
 });

@@ -64,7 +64,7 @@ export function SessionDetailDrawer({ session, onClose }: SessionDetailDrawerPro
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
           <div className="flex-1 min-w-0 pr-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="badge text-xs font-semibold px-2.5 py-1"
                     style={{ background: statusConfig.bg, color: statusConfig.text, border: `1px solid ${statusConfig.border}` }}>
                 <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ background: statusConfig.dot }} />
@@ -74,6 +74,14 @@ export function SessionDetailDrawer({ session, onClose }: SessionDetailDrawerPro
                 <span className="text-xs px-2 py-0.5 rounded-full"
                       style={{ background: `${session.course.colorHex ?? '#6366f1'}22`, color: session.course.colorHex ?? '#6366f1' }}>
                   {session.course.category}
+                </span>
+              )}
+              {(session as any).testType && (
+                <span className="text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 animate-pulse">
+                  {(() => {
+                    const labels = { MINI_TEST: 'Mini Test', MID_TEST: 'Mid-term Test', FINAL_TEST: 'Final Exam' };
+                    return labels[(session as any).testType as keyof typeof labels] || 'Test Day';
+                  })()}
                 </span>
               )}
             </div>
@@ -142,6 +150,32 @@ export function SessionDetailDrawer({ session, onClose }: SessionDetailDrawerPro
           {session.notes && (
             <DetailRow icon={<FileText className="w-4 h-4" />} label="Notes">
               <p className="leading-relaxed text-sm" style={{ color: 'var(--text-secondary)' }}>{session.notes}</p>
+            </DetailRow>
+          )}
+
+          {(session as any).examDownloadUrl && (
+            <DetailRow icon={<FileText className="w-4 h-4 text-emerald-500" />} label="Exam Papers (Print-ready)">
+              <a 
+                href={(session as any).examDownloadUrl} 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-xs btn-ghost inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold text-emerald-600 hover:text-emerald-700 bg-[rgba(16,185,129,0.08)] dark:bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.2)] mt-1 transition-all hover:scale-[1.01]"
+              >
+                📥 Download Exam Papers
+              </a>
+            </DetailRow>
+          )}
+
+          {(session as any).lmsUrl && (
+            <DetailRow icon={<Clock className="w-4 h-4 text-indigo-500" />} label="Online Test (LMS Link)">
+              <a 
+                href={(session as any).lmsUrl} 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-xs btn-ghost inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold text-indigo-600 hover:text-indigo-700 bg-[rgba(99,102,241,0.08)] dark:bg-[rgba(99,102,241,0.15)] border border-[rgba(99,102,241,0.2)] mt-1 transition-all hover:scale-[1.01]"
+              >
+                🌐 LMS Online Link (Share with Students)
+              </a>
             </DetailRow>
           )}
 

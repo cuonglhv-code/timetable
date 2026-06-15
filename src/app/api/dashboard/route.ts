@@ -7,14 +7,23 @@ export async function GET() {
     const user = await requireAuth();
 
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-    const weekStart  = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)); // Monday
-    weekStart.setHours(0, 0, 0, 0);
+    const nowHHmm = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    // UTC midnight date representing today (local calendar day)
+    const todayDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const todayStr = todayDate.toISOString().split('T')[0];
+
+    // UTC midnight date representing tomorrow
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setUTCDate(todayDate.getUTCDate() + 1);
+
+    // Monday of current week UTC midnight
+    const weekStart = new Date(todayDate);
+    weekStart.setUTCDate(todayDate.getUTCDate() - todayDate.getUTCDay() + (todayDate.getUTCDay() === 0 ? -6 : 1));
+
+    // Sunday of current week UTC midnight
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
+    weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
 
     const centreFilter = user.role === 'CENTRE_MANAGER' && user.centreId
       ? { centreId: user.centreId }
@@ -29,7 +38,7 @@ export async function GET() {
 
     // Today's sessions (full detail for the strip)
     const todaySessions = await prisma.classSession.findMany({
-      where: { ...centreFilter, date: { gte: todayStart, lte: todayEnd } },
+      where: { ...centreFilter, date: todayDate },
       orderBy: [{ startTime: 'asc' }],
       include: { course: true, teacher: true, centre: true, room: true },
     });
@@ -41,14 +50,25 @@ export async function GET() {
       distinct: ['teacherId'],
     });
 
-    // Upcoming 24h sessions
-    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const upcoming24h = await prisma.classSession.count({
-      where: { ...centreFilter, date: { gte: now, lte: next24h } },
+    // Upcoming 24h sessions (computed timezone-safely by fetching today/tomorrow and filtering in memory)
+    const upcomingSessions = await prisma.classSession.findMany({
+      where: {
+        ...centreFilter,
+        date: { gte: todayDate, lte: tomorrowDate },
+      },
+      select: { date: true, startTime: true },
     });
 
+    const upcoming24h = upcomingSessions.filter(s => {
+      const sDateStr = s.date.toISOString().split('T')[0];
+      if (sDateStr === todayStr) {
+        return s.startTime > nowHHmm;
+      } else {
+        return s.startTime <= nowHHmm;
+      }
+    }).length;
+
     // Current "on going" — sessions where today is the date and startTime <= now <= endTime
-    const nowHHmm = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
     const onGoing = todaySessions.filter(s => s.startTime <= nowHHmm && s.endTime > nowHHmm).length;
 
     // Recent 10 sessions (for an activity-style feed)

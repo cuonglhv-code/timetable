@@ -41,13 +41,14 @@ function createPrismaClient() {
 }
 
 const centresToCreate = [
-  'Jaxtina-Nguyen Van Cu',
-  'Jaxtina-Chien Thang',
-  'Jaxtina-Minh Khai',
-  'Jaxtina-Tran Quoc Hoan',
-  'Jaxtina-Tran Phu',
-  'Jaxtina-Go Vap',
-  'Jaxtina-HO'
+  'JAX-MINH KHAI',
+  'JAX-CHIEN THANG',
+  'JAX-NGUYEN VAN CU',
+  'JAX-TRAN QUOC HOAN',
+  'JAX-TRAN PHU',
+  'JAX-GO VAP',
+  'JAX-B2S',
+  'JAX-HO'
 ];
 
 async function main() {

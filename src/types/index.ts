@@ -24,6 +24,7 @@ export interface Course {
   name: string;
   category: string;
   colorHex: string | null;
+  totalSessions: number | null;
 }
 
 export interface Teacher {
@@ -45,6 +46,10 @@ export interface ClassSession {
   startTime: string;
   endTime: string;
   notes: string | null;
+  sessionNumber: number | null;
+  testType: string | null;
+  examDownloadUrl: string | null;
+  lmsUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
