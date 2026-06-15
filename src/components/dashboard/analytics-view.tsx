@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
   PieChart, Pie, Cell
 } from 'recharts';
-import type { TooltipProps } from 'recharts';
+import type { TooltipContentProps } from 'recharts';
 import {
   Calendar, TrendingUp, Download, BookOpen, Users, Clock, BarChart2
 } from 'lucide-react';
@@ -51,7 +51,7 @@ interface AnalyticsViewProps {
   };
 }
 
-interface CustomTooltipProps extends TooltipProps<number, string> {
+interface CustomTooltipProps extends Partial<TooltipContentProps<number, string>> {
   tr: (key: TranslationKey) => string;
   donutTotal?: number;
 }
@@ -69,8 +69,8 @@ const COLORS = [
 // Custom tooltips declared outside of the render function to prevent re-creation
 function CustomBarTooltip({ active, payload, label, tr }: CustomTooltipProps) {
   if (active && payload && payload.length) {
-    const hoursBooked = payload[0].value ?? 0;
-    const maxPossible = payload[1]?.value ?? 0;
+    const hoursBooked = Number(payload[0].value ?? 0);
+    const maxPossible = Number(payload[1]?.value ?? 0);
     const rate = maxPossible > 0 ? Math.round((hoursBooked / maxPossible) * 1000) / 10 : 0;
     
     return (
