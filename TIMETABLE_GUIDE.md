@@ -1,8 +1,6 @@
-# Jaxtina Timetable & Project Management Portal — User & Administrator Guide
+# Jaxtina Timetable Portal — User & Administrator Guide
 
-Welcome to the Jaxtina Portal. This system serves two primary functions:
-1. **Class Scheduling & Timetable Management:** Visual calendar views, recurring schedule generation, and strict real-time conflict prevention for rooms and teachers.
-2. **Project & Task Management (Kanban / Request Tracking):** Collaborative task boards modeled on Asana templates, supporting workflow management, story points tracking, and assignee-based views.
+Welcome to the Jaxtina Portal. This system provides **Class Scheduling & Timetable Management**, featuring visual calendar views, recurring schedule generation, and strict real-time conflict prevention for rooms and teachers.
 
 This guide details system mechanics, conflict resolution rules, and step-by-step instructions customized for each of the four user roles: **Central Admin**, **Academic Supervisor**, **Centre Manager**, and **Teacher**.
 
@@ -21,8 +19,6 @@ This guide details system mechanics, conflict resolution rules, and step-by-step
 | **Resource Settings - Courses** | Create, Update, Delete | Create, Update, Delete | Create, Update, Delete | Blocked |
 | **Resource Settings - Teachers**| Create, Update, Delete | Create, Update, Delete | Create, Update, Delete | Blocked |
 | **User Management** | Full Access | Blocked | Blocked | Blocked |
-| **Projects & Boards - View** | Read All | Read All | Read All | Read All |
-| **Projects & Boards - Edit** | Write All | Write All | Write Scoped | Read-Only |
 | **Dashboard & Audit Logs** | Full Access | View Dashboard & Workload | Scoped Dashboard & Workload | Blocked |
 
 ---
@@ -52,7 +48,7 @@ When scheduling sessions, you can toggle additional test attributes:
 ### 1. Dashboard View
 * **Overview:** Tracks key performance metrics like *Average Time to Complete Tasks* and *Work in Progress Items*. It displays live charts for *Weekly Velocity* (story points completed) and *Average Time in Stage* (average duration tasks remain in a column/status).
 * **Workload:** Monitors teaching hours per teacher in a bar chart to prevent burnout and ensure balanced scheduling.
-* **Activity Logs:** A chronological audit log tracking all actions (create, edit, delete) on sessions and projects for transparency.
+* **Activity Logs:** A chronological audit log tracking all actions (create, edit, delete) on sessions for transparency.
 
 ### 2. Calendar Views (Week / Month)
 * **Filters:** Filter sessions by Centre, Course, Teacher, or class name search.
@@ -62,12 +58,6 @@ When scheduling sessions, you can toggle additional test attributes:
   * 🟢 **On-going:** The session is currently taking place.
   * 🔴 **Finished:** The scheduled end time has passed.
 * **Detail Drawer:** Click on any session to view notes, teacher details, and copy LMS/exam links.
-
-### 3. Projects & Kanban Board
-* **View Tabs:** Easily switch between the *Dashboard* (project stats), *Board* (Kanban), *Planning* (Spreadsheet list view), and *My Tasks* (assignee filter).
-* **Group by Assignee:** Collapse and expand rows grouped by project member (including "Unassigned") to visualize who is responsible for what.
-* **Drag-and-Drop:** Move cards between columns (e.g. from *Backlog* to *In Progress*) or drag cards between assignee group swimlanes to instantly update section/assignee.
-* **Planning Grid:** A tabular list view showing Name, Assignee, Story Points, and Dependency fields, equipped with a `SUM` footer showing total story points per section.
 
 ---
 
@@ -87,11 +77,6 @@ As a Teacher, your view is optimized for transparency, preparation, and collabor
 3. Click **📥 Download Exam Papers** to download print-ready PDFs for your physical classroom.
 4. Copy the **🌐 LMS Online Link** and paste it into your online group chat or share it with students.
 
-#### Collaborative project boards (Read-Only):
-1. Navigate to the **Projects** tab.
-2. Select any active project board to review curriculum updates, design assets, or course revisions.
-3. You can review tasks, view assignees, and track progress, but cannot drag cards or add new tasks.
-
 ---
 
 ### 💼 2. Centre Manager Guide
@@ -110,11 +95,6 @@ As a Centre Manager, you are responsible for operational efficiency and schedule
 2. Select **Rooms** to add new classrooms, customize capacities, or deactivate rooms undergoing maintenance.
 3. Select **Teachers** to register new staff or update details.
 
-#### Monitoring project boards:
-1. Go to the **Projects** tab.
-2. Create or open boards scoped to your centre (e.g., *Centre Operations*).
-3. Organize workflows, assign tasks to supervisors, and utilize drag-and-drop to keep work flowing.
-
 ---
 
 ### 🎓 3. Academic Supervisor Guide
@@ -129,10 +109,6 @@ Academic Supervisors act as curriculum creators and program overseers across all
 1. Use the **Timetable** filter bar to review teacher schedules across all centres.
 2. Edit session timings, notes, and test materials to update teachers globally.
 3. Check the **Teacher Workload** chart in the Dashboard to identify underutilized or overloaded teachers.
-
-#### Managing curriculum projects:
-1. Open global projects (e.g. *IELTS Curriculum Revamp*) under the **Projects** tab.
-2. Create task lists, assign tasks to writers, configure story points, and monitor velocities.
 
 ---
 

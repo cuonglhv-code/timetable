@@ -72,46 +72,10 @@ export const filterSchema = z.object({
   searchQuery: z.string().optional(),
 });
 
-export const projectSchema = z.object({
-  name: z.string().min(1, 'Project name is required').max(100, 'Project name is too long'),
-  description: z.string().max(500, 'Description is too long').nullable().optional(),
-  defaultView: z.enum(['LIST', 'BOARD', 'CALENDAR', 'TIMELINE']).default('LIST'),
-  type: z.enum(['KANBAN', 'REQUESTS']).default('KANBAN'),
-  centreId: z.string().nullable().optional(),
-  status: z.string().nullable().optional(),
-  isFavorited: z.boolean().optional(),
-});
-
-export const sectionSchema = z.object({
-  projectId: z.string().min(1, 'Project is required'),
-  name: z.string().min(1, 'Section name is required').max(100, 'Section name is too long'),
-  order: z.number().int().default(0),
-  statusColor: z.string().max(20).nullable().optional(),
-});
-
-export const taskSchema = z.object({
-  sectionId: z.string().min(1, 'Section is required'),
-  name: z.string().min(1, 'Task name is required').max(100, 'Task name is too long'),
-  description: z.string().max(1000, 'Description is too long').nullable().optional(),
-  completed: z.boolean().default(false),
-  order: z.number().int().default(0),
-  assigneeId: z.string().nullable().optional(),
-  dueDateStart: z.string().nullable().optional().transform(val => val ? new Date(val) : null),
-  dueDateEnd: z.string().nullable().optional().transform(val => val ? new Date(val) : null),
-  effort: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullable().optional(),
-  category: z.string().max(50, 'Category is too long').nullable().optional(),
-  storyPoints: z.number().int().nonnegative().nullable().optional(),
-  priority: z.enum(['BLOCKER', 'HIGH', 'MEDIUM', 'LOW', 'TRIVIAL']).nullable().optional(),
-  completedAt: z.string().nullable().optional().transform(val => val ? new Date(val) : null),
-});
-
 export type CentreInput = z.infer<typeof centreSchema>;
 export type RoomInput = z.infer<typeof roomSchema>;
 export type CourseInput = z.infer<typeof courseSchema>;
 export type TeacherInput = z.infer<typeof teacherSchema>;
 export type SessionInput = z.infer<typeof sessionSchema>;
 export type FilterInput = z.infer<typeof filterSchema>;
-export type ProjectInput = z.infer<typeof projectSchema>;
-export type SectionInput = z.infer<typeof sectionSchema>;
-export type TaskInput = z.input<typeof taskSchema>; // Use z.input because transform changes output type to Date objects
 

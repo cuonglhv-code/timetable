@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, CalendarDays, Table2, Settings2,
-  Users, LogOut, BookOpen, ChevronDown, Kanban, Star, Share2, SlidersHorizontal, Activity, BarChart3
+  Users, LogOut, BookOpen, ChevronDown, Star, Share2, SlidersHorizontal, Activity, BarChart3
 } from 'lucide-react';
 import { WeekView } from '@/components/timetable/week-view';
 import { MonthView } from '@/components/timetable/month-view';
@@ -22,9 +22,8 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { LanguageToggle } from '@/components/ui/language-toggle';
 import { useLanguage } from '@/providers/language-provider';
 import type { FilterOptions } from '@/types';
-import { ProjectsContainer } from '@/components/projects/projects-container';
 
-type ViewType = 'dashboard' | 'timetable' | 'projects' | 'settings';
+type ViewType = 'dashboard' | 'timetable' | 'settings';
 
 interface TimetableAppProps {
   user: {
@@ -112,7 +111,6 @@ export function TimetableApp({ user }: TimetableAppProps) {
   const navItems = [
     { id: 'dashboard' as ViewType, label: tr('nav_dashboard'), icon: <LayoutDashboard className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN', 'CENTRE_MANAGER', 'ACADEMIC_SUPERVISOR'] },
     { id: 'timetable' as ViewType, label: lang === 'vi' ? 'Thời khóa biểu' : 'Timetable', icon: <CalendarDays className="w-4 h-4" /> },
-    { id: 'projects'  as ViewType, label: tr('nav_projects'),  icon: <Kanban className="w-4 h-4" /> },
     { id: 'settings'  as ViewType, label: lang === 'vi' ? 'Cài đặt' : 'Settings', icon: <Settings2 className="w-4 h-4" />, roleRequired: ['CENTRAL_ADMIN', 'CENTRE_MANAGER', 'ACADEMIC_SUPERVISOR'] },
   ];
 
@@ -234,7 +232,7 @@ export function TimetableApp({ user }: TimetableAppProps) {
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
         
         {/* Render Common Page Header for Dashboard, Timetable, Settings */}
-        {activeView !== 'projects' && (
+
           <div className="flex flex-col border rounded-xl overflow-hidden flex-shrink-0"
                style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
             
@@ -404,7 +402,7 @@ export function TimetableApp({ user }: TimetableAppProps) {
               </div>
             </div>
           </div>
-        )}
+
 
         {/* ── Sub-view Render Container ───────────────────────── */}
         {showFilters && (
@@ -430,8 +428,6 @@ export function TimetableApp({ user }: TimetableAppProps) {
               {timetableTab === 'month' && <MonthView filters={filters} user={user} />}
             </>
           )}
-
-          {activeView === 'projects' && <ProjectsContainer user={user} />}
 
           {activeView === 'settings' && (
             <>

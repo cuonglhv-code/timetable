@@ -49,3 +49,5 @@ dev.db
 
 # workspace clone
 /workspace/
+
+.vercel
